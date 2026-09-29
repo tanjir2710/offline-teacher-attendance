@@ -1,4 +1,4 @@
-const CACHE='offline-teacher-attendance-v8';
+const CACHE='offline-teacher-attendance-v9';
 const ASSETS=['./','./index.html','./manifest.webmanifest','./icons/icon.svg'];
 
 self.addEventListener('install',event=>{
