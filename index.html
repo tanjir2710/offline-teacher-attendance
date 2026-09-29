@@ -64,7 +64,7 @@
 <div class="shell">
   <header class="app-header">
     <div><h1>Offline Teacher Attendance</h1><p class="sub">Fast checkbox attendance, permanent date history, alerts, statistics, and portal-entry view.</p></div>
-    <div class="header-actions"><div id="connectionBadge" class="badge">Checking…</div><div id="versionBadge" class="badge">v0.6.2</div><div id="installStatus" class="badge file">Browser mode</div><button id="cloudShortcutBtn" class="secondary no-print">Drive Backup</button><button id="installBtn" class="primary no-print hidden">Install app</button></div>
+    <div class="header-actions"><div id="connectionBadge" class="badge">Checking…</div><div id="versionBadge" class="badge">v0.7</div><div id="installStatus" class="badge file">Browser mode</div><button id="cloudShortcutBtn" class="secondary no-print">Drive Backup</button><button id="installBtn" class="primary no-print hidden">Install app</button></div>
   </header>
 
   <div id="fileModeNotice" class="notice warning hidden">You opened the app as a local <strong>file</strong>. The attendance app works, but PWA installation/service-worker caching requires <strong>localhost or GitHub Pages</strong>. See the instructions in Backup.</div><div id="updateNotice" class="notice success hidden"><strong>New app version available.</strong> Save any attendance changes, then update. <button id="reloadUpdateBtn" class="secondary" style="margin-left:8px">Update now</button></div>
@@ -152,7 +152,7 @@
       <div class="grid two">
         <article class="card"><h2>Backup / Move to Another Device</h2><p>Attendance is stored locally on this device. Export a JSON backup regularly until cloud sync is configured.</p><div id="storageStatus" class="notice">Checking offline storage…</div><div class="button-row" style="justify-content:flex-start;flex-wrap:wrap"><button id="persistStorageBtn" class="secondary">Protect offline storage</button><button id="exportBackupBtn" class="primary">Export backup</button><label class="file-button">Restore backup<input id="restoreBackupFile" type="file" accept="application/json,.json" hidden /></label></div><p class="muted small">Persistent storage reduces the chance that the browser automatically removes local attendance data. It cannot protect against deleting app/site data or losing the device.</p></article>
         <article class="card"><h2>Install / Run Correctly</h2><ol><li><strong>First visit requires internet.</strong> Open the GitHub Pages link once so the app files can be cached.</li><li><strong>Install while online.</strong> Tap <strong>Install app</strong> when available. On iPhone/iPad: Safari → Share → Add to Home Screen.</li><li><strong>After installation:</strong> open the app and take attendance with no internet.</li><li><strong>When internet returns:</strong> online features work again; cloud backup/sync can then run.</li></ol><p class="muted">The installed app keeps attendance on the device. Clearing browser/app data removes that local copy, which is why cloud backup is the next safety layer.</p></article>
-        <article id="cloudSyncCard" class="card"><h2>Google Drive Cloud Backup <span class="pill">Beta</span></h2><p>Optional cloud backup uses each teacher's own Google Drive <strong>App Data</strong> area. Attendance continues to work offline; Drive is contacted only when internet is available.</p><div id="adminGoogleSetup" class="hidden"><label>Admin OAuth Client ID<input id="googleClientId" placeholder="xxxx.apps.googleusercontent.com" /></label><div class="button-row" style="justify-content:flex-start;flex-wrap:wrap;margin-top:10px"><button id="saveGoogleClientBtn" class="secondary">Save admin setup</button></div></div><div class="button-row" style="justify-content:flex-start;flex-wrap:wrap;margin-top:10px"><button id="googleSignInBtn" class="primary">Connect Google Drive</button><button id="syncNowBtn" class="secondary">Sync now</button><button id="restoreDriveBtn" class="secondary">Restore from Drive</button></div><div id="cloudStatus" class="notice warning" style="margin-top:12px">Google Drive is not connected.</div><p id="cloudHelp" class="muted small">Each teacher connects only their own Google account. No OAuth Client ID is required from faculty.</p></article>
+        <article id="cloudSyncCard" class="card"><h2>Google Drive Multi‑Device Sync <span class="pill">Beta</span></h2><p>Use the <strong>same Google account on every device</strong>. Courses, student lists, attendance, alerts and statistics are merged through that teacher's private Google Drive App Data area whenever the devices are online.</p><div id="adminGoogleSetup" class="hidden"><label>Admin OAuth Client ID<input id="googleClientId" placeholder="xxxx.apps.googleusercontent.com" /></label><div class="button-row" style="justify-content:flex-start;flex-wrap:wrap;margin-top:10px"><button id="saveGoogleClientBtn" class="secondary">Save admin setup</button></div></div><div class="button-row" style="justify-content:flex-start;flex-wrap:wrap;margin-top:10px"><button id="googleSignInBtn" class="primary">Connect Google Drive</button><button id="syncNowBtn" class="secondary">Sync all devices</button><button id="restoreDriveBtn" class="secondary">Restore from Drive</button></div><div id="cloudStatus" class="notice warning" style="margin-top:12px">Google Drive is not connected.</div><p id="cloudHelp" class="muted small">For the same data on phone, tablet and computer, connect the same Google account on each device. Offline changes will merge when that device reconnects.</p></article>
       </div>
     </section>
   </main>
@@ -165,7 +165,7 @@
 (() => {
   'use strict';
   const STORAGE_KEY = 'offlineTeacherAttendance.v3';
-  const APP_VERSION = '0.6.2';
+  const APP_VERSION = '0.7.0';
   const DB_NAME = 'OfflineTeacherAttendanceDB';
   const DB_STORE = 'app';
   const DB_STATE_KEY = 'state';
@@ -181,6 +181,7 @@
   let googleAccessToken = '';
   let cloudFileId = '';
   let syncTimer = null;
+  let syncInFlight = false;
   let draft = { courseId:null, date:null, present:new Set(), existing:false, dirty:false };
 
   function loadState(){
@@ -227,10 +228,13 @@
       idbSave(state);
     }
   }
-  function persist(){
-    state.lastModified = new Date().toISOString();
+  function saveLocalState(){
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     idbSave(state);
+  }
+  function persist(){
+    state.lastModified = new Date().toISOString();
+    saveLocalState();
     scheduleCloudSync();
   }
   function uid(){ return (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36)+Math.random().toString(36).slice(2)); }
@@ -291,13 +295,85 @@
   }
   function getGoogleClientId(){ return EMBEDDED_GOOGLE_CLIENT_ID || localStorage.getItem(GOOGLE_CLIENT_ID_KEY) || ''; }
   function isAdminSetupMode(){ return new URLSearchParams(location.search).get('admin')==='1'; }
+
+  function timeValue(v){ const n=Date.parse(v||''); return Number.isFinite(n)?n:0; }
+  function isoMax(...vals){
+    const n=Math.max(0,...vals.map(timeValue));
+    return n?new Date(n).toISOString():new Date(0).toISOString();
+  }
+  function deepCopy(v){ return JSON.parse(JSON.stringify(v)); }
+  function normalizeSyncState(input){
+    const x=(input && typeof input==='object')?deepCopy(input):{version:4,courses:[]};
+    if(!Array.isArray(x.courses)) x.courses=[];
+    x.deletedCourses ||= {};
+    for(const c of x.courses){
+      c.sessions ||= {};
+      c.deletedSessions ||= {};
+      const sessionTimes=Object.values(c.sessions).map(v=>v?.updatedAt);
+      const deletedTimes=Object.values(c.deletedSessions);
+      c.updatedAt ||= isoMax(c.createdAt,...sessionTimes,...deletedTimes);
+    }
+    x.version=4;
+    x.lastModified ||= isoMax(...x.courses.map(c=>c.updatedAt),...Object.values(x.deletedCourses));
+    return x;
+  }
+  function mergeTimestampMaps(a={},b={}){
+    const out={};
+    for(const k of new Set([...Object.keys(a||{}),...Object.keys(b||{})])){
+      const av=a?.[k], bv=b?.[k];
+      out[k]=timeValue(av)>=timeValue(bv)?av:bv;
+    }
+    return out;
+  }
+  function mergeCourse(localCourse,remoteCourse){
+    if(!localCourse) return normalizeSyncState({courses:[remoteCourse]}).courses[0];
+    if(!remoteCourse) return normalizeSyncState({courses:[localCourse]}).courses[0];
+    const lc=deepCopy(localCourse), rc=deepCopy(remoteCourse);
+    lc.sessions ||= {}; rc.sessions ||= {}; lc.deletedSessions ||= {}; rc.deletedSessions ||= {};
+    const base=timeValue(lc.updatedAt||lc.createdAt)>=timeValue(rc.updatedAt||rc.createdAt)?lc:rc;
+    const out={...deepCopy(base),sessions:{},deletedSessions:mergeTimestampMaps(lc.deletedSessions,rc.deletedSessions)};
+    const dates=new Set([...Object.keys(lc.sessions),...Object.keys(rc.sessions),...Object.keys(out.deletedSessions)]);
+    for(const d of dates){
+      const ls=lc.sessions[d], rs=rc.sessions[d], del=out.deletedSessions[d];
+      let chosen=null;
+      if(ls && rs) chosen=timeValue(ls.updatedAt)>=timeValue(rs.updatedAt)?ls:rs;
+      else chosen=ls||rs||null;
+      if(chosen && timeValue(del)<timeValue(chosen.updatedAt)) out.sessions[d]=deepCopy(chosen);
+    }
+    out.updatedAt=isoMax(
+      lc.updatedAt,rc.updatedAt,lc.createdAt,rc.createdAt,
+      ...Object.values(out.sessions).map(v=>v?.updatedAt),
+      ...Object.values(out.deletedSessions)
+    );
+    return out;
+  }
+  function mergeStates(localState,remoteState){
+    const a=normalizeSyncState(localState), b=normalizeSyncState(remoteState);
+    const deletedCourses=mergeTimestampMaps(a.deletedCourses,b.deletedCourses);
+    const amap=new Map(a.courses.map(c=>[c.id,c])), bmap=new Map(b.courses.map(c=>[c.id,c]));
+    const courses=[];
+    for(const id of new Set([...amap.keys(),...bmap.keys(),...Object.keys(deletedCourses)])){
+      const merged=mergeCourse(amap.get(id),bmap.get(id));
+      if(!merged) continue;
+      if(timeValue(deletedCourses[id])>=timeValue(merged.updatedAt)) continue;
+      courses.push(merged);
+    }
+    courses.sort((x,y)=>(x.section||'').localeCompare(y.section||'')||(x.courseCode||'').localeCompare(y.courseCode||''));
+    return {
+      version:4,
+      courses,
+      deletedCourses,
+      lastModified:isoMax(a.lastModified,b.lastModified,...courses.map(c=>c.updatedAt),...Object.values(deletedCourses))
+    };
+  }
+
   function initGoogleDrive(){
     const clientId=getGoogleClientId();
     const adminMode=isAdminSetupMode();
     if($('adminGoogleSetup')) $('adminGoogleSetup').classList.toggle('hidden',!adminMode);
     if($('googleClientId')) $('googleClientId').value=clientId;
     if(!clientId){
-      cloudStatus(adminMode?'Admin setup required: enter the Google OAuth Client ID above.':'Cloud backup is not enabled by the administrator yet. Attendance still works fully offline.','warning');
+      cloudStatus(adminMode?'Admin setup required: enter the Google OAuth Client ID above.':'Cloud sync is not enabled by the administrator yet. Attendance still works fully offline.','warning');
       if($('googleSignInBtn')) $('googleSignInBtn').disabled=true;
       if($('syncNowBtn')) $('syncNowBtn').disabled=true;
       if($('restoreDriveBtn')) $('restoreDriveBtn').disabled=true;
@@ -307,16 +383,15 @@
     if($('googleSignInBtn')) $('googleSignInBtn').disabled=false;
     if($('syncNowBtn')) $('syncNowBtn').disabled=false;
     if($('restoreDriveBtn')) $('restoreDriveBtn').disabled=false;
-    if(!window.google?.accounts?.oauth2){ cloudStatus(navigator.onLine?'Google sign-in is still loading. Try Connect again in a moment.':'Offline: Drive sync will resume when internet returns.','warning'); return false; }
+    if(!window.google?.accounts?.oauth2){ cloudStatus(navigator.onLine?'Google sign-in is still loading. Try Connect again in a moment.':'Offline: local attendance is available; cloud sync resumes after reconnecting.','warning'); return false; }
     googleTokenClient = google.accounts.oauth2.initTokenClient({
       client_id:clientId,
       scope:DRIVE_SCOPE,
       callback:async(resp)=>{
         if(resp.error){ cloudStatus('Google Drive authorization failed: '+resp.error,'warning'); return; }
         googleAccessToken=resp.access_token||'';
-        cloudStatus('Google Drive connected. Local attendance will auto-backup while this session is authorized.','success');
-        await discoverCloudFile();
-        scheduleCloudSync(300);
+        cloudStatus('Connected. Syncing this device with your other devices…','success');
+        await syncAllDevices(false);
       }
     });
     return true;
@@ -339,7 +414,11 @@
     const headers=new Headers(options.headers||{});
     headers.set('Authorization','Bearer '+googleAccessToken);
     const res=await fetch(url,{...options,headers});
-    if(res.status===401){ googleAccessToken=''; cloudStatus('Drive session expired. Tap Connect Google Drive again.','warning'); throw new Error('Drive session expired.'); }
+    if(res.status===401){
+      googleAccessToken='';
+      cloudStatus('Drive session expired. Tap Connect Google Drive again. Your offline data is safe.','warning');
+      throw new Error('Drive session expired.');
+    }
     if(!res.ok) throw new Error('Drive API error '+res.status);
     return res;
   }
@@ -351,10 +430,7 @@
     cloudFileId=data.files?.[0]?.id||'';
     return cloudFileId;
   }
-  async function ensureCloudFile(){
-    if(cloudFileId) return cloudFileId;
-    await discoverCloudFile();
-    if(cloudFileId) return cloudFileId;
+  async function createCloudFile(){
     const res=await driveFetch('https://www.googleapis.com/drive/v3/files?fields=id',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
@@ -363,48 +439,70 @@
     cloudFileId=(await res.json()).id;
     return cloudFileId;
   }
-  async function cloudBackup(silent=false){
-    if(!navigator.onLine || !googleAccessToken) return false;
+  async function readCloudState(){
+    if(!cloudFileId) await discoverCloudFile();
+    if(!cloudFileId) return null;
+    const res=await driveFetch('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(cloudFileId)+'?alt=media');
+    const txt=await res.text();
+    if(!txt.trim()) return null;
+    const remote=JSON.parse(txt);
+    return Array.isArray(remote?.courses)?remote:null;
+  }
+  async function uploadCloudState(){
+    if(!cloudFileId) await createCloudFile();
+    const payload=JSON.stringify({...normalizeSyncState(state),cloudSyncedAt:new Date().toISOString()});
+    await driveFetch('https://www.googleapis.com/upload/drive/v3/files/'+encodeURIComponent(cloudFileId)+'?uploadType=media',{
+      method:'PATCH',
+      headers:{'Content-Type':'application/json'},
+      body:payload
+    });
+  }
+  async function syncAllDevices(silent=false){
+    if(!navigator.onLine || !googleAccessToken || syncInFlight) return false;
+    syncInFlight=true;
     try{
-      const id=await ensureCloudFile();
-      const payload=JSON.stringify({...state,cloudSyncedAt:new Date().toISOString()});
-      await driveFetch('https://www.googleapis.com/upload/drive/v3/files/'+encodeURIComponent(id)+'?uploadType=media',{
-        method:'PATCH',
-        headers:{'Content-Type':'application/json'},
-        body:payload
-      });
-      cloudStatus('Cloud backup up to date · '+new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}),'success');
-      if(!silent) toast('Google Drive backup updated.');
+      const localBefore=JSON.stringify(normalizeSyncState(state));
+      const remote=await readCloudState();
+      const merged=mergeStates(state,remote);
+      state=merged;
+      saveLocalState();
+      await uploadCloudState();
+      const changed=JSON.stringify(merged)!==localBefore;
+      if(changed && !draft.dirty) renderAll();
+      cloudStatus('All devices synced · '+new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}),'success');
+      if(!silent) toast(changed?'Cloud changes merged into this device.':'All devices are up to date.');
       return true;
     }catch(e){
-      cloudStatus('Cloud backup failed: '+e.message,'warning');
-      if(!silent) toast('Cloud backup failed.');
+      cloudStatus('Sync failed: '+e.message,'warning');
+      if(!silent) toast('Multi-device sync failed.');
       return false;
+    }finally{
+      syncInFlight=false;
     }
   }
-  function scheduleCloudSync(delay=1800){
+  function scheduleCloudSync(delay=1200){
     clearTimeout(syncTimer);
     if(!navigator.onLine || !googleAccessToken) return;
-    syncTimer=setTimeout(()=>cloudBackup(true),delay);
+    syncTimer=setTimeout(()=>syncAllDevices(true),delay);
   }
   $('syncNowBtn').onclick=async()=>{
-    if(!navigator.onLine) return toast('You are offline. Attendance is safe locally; sync later.');
+    if(!navigator.onLine) return toast('You are offline. Changes will sync when this device is online again.');
     if(!googleAccessToken) return toast('Connect Google Drive first.');
-    await cloudBackup(false);
+    await syncAllDevices(false);
   };
   $('restoreDriveBtn').onclick=async()=>{
     if(!navigator.onLine) return toast('Internet is required to restore from Drive.');
     if(!googleAccessToken) return toast('Connect Google Drive first.');
     try{
-      const id=await ensureCloudFile();
-      const res=await driveFetch('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(id)+'?alt=media');
-      const remote=await res.json();
-      if(!remote || !Array.isArray(remote.courses)) throw new Error('Cloud backup is invalid.');
-      if(!confirm('Replace this device\'s local attendance data with the Google Drive backup?')) return;
-      state=remote; localStorage.setItem(STORAGE_KEY,JSON.stringify(state)); await idbSave(state); renderAll();
-      cloudStatus('Restored from Google Drive.','success'); toast('Cloud backup restored.');
+      const remote=await readCloudState();
+      if(!remote || !Array.isArray(remote.courses)) throw new Error('No cloud data found.');
+      if(!confirm('Replace this device\'s local data with the current Google Drive copy? Use this only for recovery; normal use should use Sync all devices.')) return;
+      state=normalizeSyncState(remote); saveLocalState(); renderAll();
+      cloudStatus('This device was restored from Google Drive.','success'); toast('Cloud data restored.');
     }catch(e){ cloudStatus('Restore failed: '+e.message,'warning'); toast('Restore from Drive failed.'); }
   };
+  document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible' && navigator.onLine && googleAccessToken) scheduleCloudSync(300); });
+  setInterval(()=>{ if(navigator.onLine && googleAccessToken) syncAllDevices(true); },60000);
 
   function switchView(name){
     document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===`view-${name}`));
@@ -447,7 +545,7 @@
     if(!section||!code||!name) return toast('Enter section, course code, and course name.');
     if(!importStudents.length) importStudents=parseRoster($('studentPaste').value);
     if(!importStudents.length) return toast('Paste or import the student list first.');
-    state.courses.push({id:uid(),section,courseCode:code,courseName:name,alertThreshold:threshold,students:importStudents.map(x=>({...x})),sessions:{},createdAt:new Date().toISOString()}); persist();
+    { const now=new Date().toISOString(); state.courses.push({id:uid(),section,courseCode:code,courseName:name,alertThreshold:threshold,students:importStudents.map(x=>({...x})),sessions:{},deletedSessions:{},createdAt:now,updatedAt:now}); } persist();
     $('sectionName').value=''; $('courseCode').value=''; $('courseName').value=''; $('studentPaste').value=''; importStudents=[]; $('importPreview').classList.add('hidden');
     renderAll(); toast('Course created.');
   };
@@ -459,7 +557,7 @@
       const sessions=sortedSessions(c).length; return `<div class="course-card"><div><strong>${esc(c.section)} · ${esc(c.courseCode)}</strong><div>${esc(c.courseName)}</div><div class="course-meta">${c.students.length} students · ${sessions} recorded classes · alert at ${c.alertThreshold} absences</div></div><div class="course-actions"><button class="secondary" data-open="${c.id}">Take attendance</button><button class="danger ghost" data-delete="${c.id}">Delete</button></div></div>`;
     }).join('');
     el.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>{ $('attendanceCourseSelect').value=b.dataset.open; loadDraft(); switchView('attendance'); });
-    el.querySelectorAll('[data-delete]').forEach(b=>b.onclick=()=>{ const c=currentCourse(b.dataset.delete); if(confirm(`Delete ${c.section} and all its local attendance data?`)){ state.courses=state.courses.filter(x=>x.id!==c.id); persist(); renderAll(); }});
+    el.querySelectorAll('[data-delete]').forEach(b=>b.onclick=()=>{ const c=currentCourse(b.dataset.delete); if(confirm(`Delete ${c.section} and all its attendance data from all synced devices?`)){ const now=new Date().toISOString(); state.deletedCourses ||= {}; state.deletedCourses[c.id]=now; state.courses=state.courses.filter(x=>x.id!==c.id); persist(); renderAll(); }});
   }
   function courseOptionHtml(){ return state.courses.map(c=>`<option value="${c.id}">${esc(c.section)} · ${esc(c.courseCode)} · ${esc(c.courseName)}</option>`).join(''); }
   function refreshSelects(){
@@ -492,12 +590,12 @@
   $('attendanceCourseSelect').onchange=loadDraft; $('attendanceDate').onchange=loadDraft;
   $('markAllBtn').onclick=()=>{ const c=currentCourse(draft.courseId); if(!c)return; draft.present=new Set(c.students.map(s=>s.id)); draft.dirty=true; renderAttendance(); };
   $('clearAllBtn').onclick=()=>{ if(!draft.courseId)return; draft.present=new Set(); draft.dirty=true; renderAttendance(); };
-  $('deleteSessionBtn').onclick=()=>{ const c=currentCourse(draft.courseId); if(!c||!c.sessions?.[draft.date]) return toast('No saved attendance for this date.'); if(confirm(`Delete attendance for ${fmtDate(draft.date)}?`)){ delete c.sessions[draft.date]; persist(); loadDraft(); renderAll(); toast('Attendance date deleted.'); }};
+  $('deleteSessionBtn').onclick=()=>{ const c=currentCourse(draft.courseId); if(!c||!c.sessions?.[draft.date]) return toast('No saved attendance for this date.'); if(confirm(`Delete attendance for ${fmtDate(draft.date)} from all synced devices?`)){ const now=new Date().toISOString(); delete c.sessions[draft.date]; c.deletedSessions ||= {}; c.deletedSessions[draft.date]=now; c.updatedAt=now; persist(); loadDraft(); renderAll(); toast('Attendance date deleted.'); }};
 
   $('saveAttendanceBtn').onclick=()=>{
     const c=currentCourse(draft.courseId); if(!c)return; c.sessions ||= {};
     const priorRisks=new Map(c.students.map(s=>[s.id,studentRisk(c,s.id)]));
-    c.sessions[draft.date]={presentIds:[...draft.present],updatedAt:new Date().toISOString()}; persist(); draft.existing=true; draft.dirty=false;
+    const now=new Date().toISOString(); c.sessions[draft.date]={presentIds:[...draft.present],updatedAt:now}; c.deletedSessions ||= {}; delete c.deletedSessions[draft.date]; c.updatedAt=now; persist(); draft.existing=true; draft.dirty=false;
     const newAlerts=[];
     for(const st of c.students){ const before=priorRisks.get(st.id), after=studentRisk(c,st.id); if(after.streak>=2 && before.streak<2) newAlerts.push(`${st.name}: ${after.streak} consecutive absences`); else if(after.total>=c.alertThreshold && before.total<c.alertThreshold) newAlerts.push(`${st.name}: ${after.total} total absences`); }
     renderAll(); renderAttendance(); toast(`Saved ${fmtDate(draft.date)}.`); if(newAlerts.length) notifyAlerts(c,newAlerts);
@@ -583,7 +681,7 @@
     renderStats(); renderPortalSelectors();
   }
 
-  connectionState(); updateInstallUI(); updateStorageStatus(); hydrateOfflineDatabase(); initGoogleDrive(); $('attendanceDate').value=todayISO(); renderAll();
+  state=normalizeSyncState(state); saveLocalState(); connectionState(); updateInstallUI(); updateStorageStatus(); hydrateOfflineDatabase(); initGoogleDrive(); $('attendanceDate').value=todayISO(); renderAll();
   if('serviceWorker' in navigator && (location.protocol==='https:' || location.hostname==='localhost' || location.hostname==='127.0.0.1')){
     let swReg=null, controllerChanging=false;
     const showUpdate=()=>{ $('updateNotice').classList.remove('hidden'); };
