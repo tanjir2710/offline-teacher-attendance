@@ -64,10 +64,10 @@
 <div class="shell">
   <header class="app-header">
     <div><h1>Offline Teacher Attendance</h1><p class="sub">Fast checkbox attendance, permanent date history, alerts, statistics, and portal-entry view.</p></div>
-    <div class="header-actions"><div id="connectionBadge" class="badge">Checking…</div><div id="installStatus" class="badge file">Browser mode</div><button id="installBtn" class="primary no-print hidden">Install app</button></div>
+    <div class="header-actions"><div id="connectionBadge" class="badge">Checking…</div><div id="versionBadge" class="badge">v0.6</div><div id="installStatus" class="badge file">Browser mode</div><button id="cloudShortcutBtn" class="secondary no-print">Drive Backup</button><button id="installBtn" class="primary no-print hidden">Install app</button></div>
   </header>
 
-  <div id="fileModeNotice" class="notice warning hidden">You opened the app as a local <strong>file</strong>. The attendance app works, but PWA installation/service-worker caching requires <strong>localhost or GitHub Pages</strong>. See the instructions in Backup.</div>
+  <div id="fileModeNotice" class="notice warning hidden">You opened the app as a local <strong>file</strong>. The attendance app works, but PWA installation/service-worker caching requires <strong>localhost or GitHub Pages</strong>. See the instructions in Backup.</div><div id="updateNotice" class="notice success hidden"><strong>New app version available.</strong> Save any attendance changes, then update. <button id="reloadUpdateBtn" class="secondary" style="margin-left:8px">Update now</button></div>
 
   <nav class="tabs no-print" aria-label="Main navigation">
     <button class="tab active" data-view="courses">Courses</button>
@@ -75,7 +75,7 @@
     <button class="tab" data-view="alerts">Alerts <span id="alertNavCount" class="pill">0</span></button>
     <button class="tab" data-view="statistics">Statistics</button>
     <button class="tab" data-view="portal">Portal View</button>
-    <button class="tab" data-view="backup">Backup</button>
+    <button class="tab" data-view="backup">Backup & Sync</button>
   </nav>
 
   <main>
@@ -152,7 +152,7 @@
       <div class="grid two">
         <article class="card"><h2>Backup / Move to Another Device</h2><p>Attendance is stored locally on this device. Export a JSON backup regularly until cloud sync is configured.</p><div id="storageStatus" class="notice">Checking offline storage…</div><div class="button-row" style="justify-content:flex-start;flex-wrap:wrap"><button id="persistStorageBtn" class="secondary">Protect offline storage</button><button id="exportBackupBtn" class="primary">Export backup</button><label class="file-button">Restore backup<input id="restoreBackupFile" type="file" accept="application/json,.json" hidden /></label></div><p class="muted small">Persistent storage reduces the chance that the browser automatically removes local attendance data. It cannot protect against deleting app/site data or losing the device.</p></article>
         <article class="card"><h2>Install / Run Correctly</h2><ol><li><strong>First visit requires internet.</strong> Open the GitHub Pages link once so the app files can be cached.</li><li><strong>Install while online.</strong> Tap <strong>Install app</strong> when available. On iPhone/iPad: Safari → Share → Add to Home Screen.</li><li><strong>After installation:</strong> open the app and take attendance with no internet.</li><li><strong>When internet returns:</strong> online features work again; cloud backup/sync can then run.</li></ol><p class="muted">The installed app keeps attendance on the device. Clearing browser/app data removes that local copy, which is why cloud backup is the next safety layer.</p></article>
-        <article class="card"><h2>Google Drive Cloud Backup <span class="pill">Beta</span></h2><p>Optional cloud backup uses each teacher's own Google Drive <strong>App Data</strong> area. Attendance continues to work offline; Drive is contacted only when internet is available.</p><label>Google OAuth Client ID<input id="googleClientId" placeholder="xxxx.apps.googleusercontent.com" /></label><div class="button-row" style="justify-content:flex-start;flex-wrap:wrap;margin-top:10px"><button id="saveGoogleClientBtn" class="secondary">Save setup</button><button id="googleSignInBtn" class="primary">Connect Google Drive</button><button id="syncNowBtn" class="secondary">Sync now</button><button id="restoreDriveBtn" class="secondary">Restore from Drive</button></div><div id="cloudStatus" class="notice warning" style="margin-top:12px">Google Drive is not connected.</div><p class="muted small">For faculty-wide use, the project owner should configure one OAuth Web Client ID for this GitHub Pages site. The Client ID is public configuration, not a password or secret.</p></article>
+        <article id="cloudSyncCard" class="card"><h2>Google Drive Cloud Backup <span class="pill">Beta</span></h2><p>Optional cloud backup uses each teacher's own Google Drive <strong>App Data</strong> area. Attendance continues to work offline; Drive is contacted only when internet is available.</p><label>Google OAuth Client ID<input id="googleClientId" placeholder="xxxx.apps.googleusercontent.com" /></label><div class="button-row" style="justify-content:flex-start;flex-wrap:wrap;margin-top:10px"><button id="saveGoogleClientBtn" class="secondary">Save setup</button><button id="googleSignInBtn" class="primary">Connect Google Drive</button><button id="syncNowBtn" class="secondary">Sync now</button><button id="restoreDriveBtn" class="secondary">Restore from Drive</button></div><div id="cloudStatus" class="notice warning" style="margin-top:12px">Google Drive is not connected.</div><p class="muted small">For faculty-wide use, the project owner should configure one OAuth Web Client ID for this GitHub Pages site. The Client ID is public configuration, not a password or secret.</p></article>
       </div>
     </section>
   </main>
@@ -165,6 +165,7 @@
 (() => {
   'use strict';
   const STORAGE_KEY = 'offlineTeacherAttendance.v3';
+  const APP_VERSION = '0.6.0';
   const DB_NAME = 'OfflineTeacherAttendanceDB';
   const DB_STORE = 'app';
   const DB_STATE_KEY = 'state';
@@ -396,6 +397,7 @@
     if(name==='alerts') renderAlerts(); if(name==='statistics') renderStats(); if(name==='portal') renderPortalSelectors();
   }
   document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>switchView(b.dataset.view)));
+  $('cloudShortcutBtn').onclick=()=>{ switchView('backup'); setTimeout(()=>$('cloudSyncCard')?.scrollIntoView({behavior:'smooth',block:'center'}),50); };
 
   function parseRoster(text){
     const out=[]; const seen=new Set();
@@ -568,7 +570,31 @@
 
   connectionState(); updateInstallUI(); updateStorageStatus(); hydrateOfflineDatabase(); initGoogleDrive(); $('attendanceDate').value=todayISO(); renderAll();
   if('serviceWorker' in navigator && (location.protocol==='https:' || location.hostname==='localhost' || location.hostname==='127.0.0.1')){
-    navigator.serviceWorker.register('./sw.js').catch(()=>{});
+    let swReg=null, controllerChanging=false;
+    const showUpdate=()=>{ $('updateNotice').classList.remove('hidden'); };
+    navigator.serviceWorker.addEventListener('controllerchange',()=>{
+      if(controllerChanging) return;
+      controllerChanging=true;
+      if(draft && draft.dirty){ showUpdate(); controllerChanging=false; return; }
+      location.reload();
+    });
+    navigator.serviceWorker.register('./sw.js').then(reg=>{
+      swReg=reg;
+      if(navigator.onLine) reg.update().catch(()=>{});
+      if(reg.waiting) showUpdate();
+      reg.addEventListener('updatefound',()=>{
+        const worker=reg.installing; if(!worker) return;
+        worker.addEventListener('statechange',()=>{
+          if(worker.state==='installed' && navigator.serviceWorker.controller) showUpdate();
+        });
+      });
+      setInterval(()=>{ if(navigator.onLine) reg.update().catch(()=>{}); },60*60*1000);
+    }).catch(()=>{});
+    $('reloadUpdateBtn').onclick=()=>{
+      if(draft && draft.dirty && !confirm('You have unsaved attendance changes. Update anyway?')) return;
+      if(swReg?.waiting) swReg.waiting.postMessage({type:'SKIP_WAITING'});
+      else location.reload();
+    };
   }
 })();
 </script>
