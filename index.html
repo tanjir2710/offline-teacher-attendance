@@ -64,7 +64,7 @@
 <div class="shell">
   <header class="app-header">
     <div><h1>Offline Teacher Attendance</h1><p class="sub">Fast checkbox attendance, permanent date history, alerts, statistics, and portal-entry view.</p></div>
-    <div class="header-actions"><div id="connectionBadge" class="badge">Checking…</div><div id="versionBadge" class="badge">v0.6.1</div><div id="installStatus" class="badge file">Browser mode</div><button id="cloudShortcutBtn" class="secondary no-print">Drive Backup</button><button id="installBtn" class="primary no-print hidden">Install app</button></div>
+    <div class="header-actions"><div id="connectionBadge" class="badge">Checking…</div><div id="versionBadge" class="badge">v0.6.2</div><div id="installStatus" class="badge file">Browser mode</div><button id="cloudShortcutBtn" class="secondary no-print">Drive Backup</button><button id="installBtn" class="primary no-print hidden">Install app</button></div>
   </header>
 
   <div id="fileModeNotice" class="notice warning hidden">You opened the app as a local <strong>file</strong>. The attendance app works, but PWA installation/service-worker caching requires <strong>localhost or GitHub Pages</strong>. See the instructions in Backup.</div><div id="updateNotice" class="notice success hidden"><strong>New app version available.</strong> Save any attendance changes, then update. <button id="reloadUpdateBtn" class="secondary" style="margin-left:8px">Update now</button></div>
@@ -165,12 +165,12 @@
 (() => {
   'use strict';
   const STORAGE_KEY = 'offlineTeacherAttendance.v3';
-  const APP_VERSION = '0.6.1';
+  const APP_VERSION = '0.6.2';
   const DB_NAME = 'OfflineTeacherAttendanceDB';
   const DB_STORE = 'app';
   const DB_STATE_KEY = 'state';
   const GOOGLE_CLIENT_ID_KEY = 'offlineTeacherAttendance.googleClientId';
-  const EMBEDDED_GOOGLE_CLIENT_ID = '';
+  const EMBEDDED_GOOGLE_CLIENT_ID = '460419019734-lhvkcq795cg41k6cet2mvcnmmq3djcht.apps.googleusercontent.com';
   const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
   const DRIVE_FILE_NAME = 'offline-teacher-attendance-backup.json';
   const $ = (id) => document.getElementById(id);
