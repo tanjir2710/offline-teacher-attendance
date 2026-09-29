@@ -223,7 +223,8 @@
   async function hydrateOfflineDatabase(){
     const dbState=await idbLoad();
     if(!localStorage.getItem(STORAGE_KEY) && dbState && Array.isArray(dbState.courses)){
-      state=dbState; localStorage.setItem(STORAGE_KEY,JSON.stringify(state)); renderAll();
+      state=dbState;
+      localStorage.setItem(STORAGE_KEY,JSON.stringify(state));
     }else{
       idbSave(state);
     }
@@ -671,7 +672,7 @@
   $('exportCsvBtn').onclick=()=>{ const c=currentCourse($('portalCourseSelect').value),d=$('portalDateSelect').value;if(!c||!d||!c.sessions?.[d])return;const set=new Set(c.sessions[d].presentIds||[]);const csv=['Student ID,Name,Status',...c.students.map(s=>`"${s.id.replaceAll('"','""')}","${s.name.replaceAll('"','""')}",${set.has(s.id)?'Present':'Absent'}`)].join('\n');download(`attendance-${c.section}-${d}.csv`,csv,'text/csv'); };
 
   $('exportBackupBtn').onclick=()=>download(`attendance-backup-${todayISO()}.json`,JSON.stringify(state,null,2),'application/json');
-  $('restoreBackupFile').onchange=async(e)=>{ const f=e.target.files[0]; if(!f)return; try{const x=JSON.parse(await f.text());if(!Array.isArray(x.courses))throw new Error('Invalid backup'); state.courses=x.courses;state.version=3;persist();renderAll();toast('Backup restored.');}catch(err){toast('Invalid backup file.');} e.target.value=''; };
+  $('restoreBackupFile').onchange=async(e)=>{ const f=e.target.files[0]; if(!f)return; try{const x=JSON.parse(await f.text());if(!Array.isArray(x.courses))throw new Error('Invalid backup'); state=normalizeSyncState(x);persist();renderAll();toast('Backup restored.');}catch(err){toast('Invalid backup file.');} e.target.value=''; };
   function download(name,text,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
 
   function renderAll(){
@@ -681,7 +682,7 @@
     renderStats(); renderPortalSelectors();
   }
 
-  state=normalizeSyncState(state); saveLocalState(); connectionState(); updateInstallUI(); updateStorageStatus(); hydrateOfflineDatabase(); initGoogleDrive(); $('attendanceDate').value=todayISO(); renderAll();
+  connectionState(); updateInstallUI(); updateStorageStatus(); initGoogleDrive(); $('attendanceDate').value=todayISO(); renderAll(); hydrateOfflineDatabase().then(()=>{ state=normalizeSyncState(state); saveLocalState(); renderAll(); });
   if('serviceWorker' in navigator && (location.protocol==='https:' || location.hostname==='localhost' || location.hostname==='127.0.0.1')){
     let swReg=null, controllerChanging=false;
     const showUpdate=()=>{ $('updateNotice').classList.remove('hidden'); };
