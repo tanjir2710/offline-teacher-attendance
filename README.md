@@ -53,3 +53,18 @@ After the hosted app has been opened once, its shell is cached for offline use.
 ## Privacy
 
 Real student names, IDs, and attendance data are stored locally in the browser. Do not commit real student attendance data into a public GitHub repository. Use the built-in JSON backup if data must be moved to another device.
+
+## Offline database and Google Drive backup
+
+The app is designed as **offline-first**:
+
+- The first hosted visit requires internet so the PWA shell can be cached.
+- After installation, attendance can be taken without internet.
+- Attendance is stored locally on the device and mirrored into IndexedDB.
+- The **Protect offline storage** control requests persistent browser storage where supported.
+- When Google Drive is connected and internet is available, local changes can be backed up to the teacher's own Google Drive App Data area.
+- Cloud restore is manual to avoid silently overwriting a newer local copy.
+
+Google Drive backup currently uses short-lived browser OAuth access tokens. This means the teacher may need to tap **Connect Google Drive** again after reopening the app or after the Google session expires. Fully silent long-term background sync would require a backend/service architecture with refresh-token handling.
+
+See [GOOGLE_DRIVE_SETUP.md](GOOGLE_DRIVE_SETUP.md) for the one-time Google Cloud configuration.
