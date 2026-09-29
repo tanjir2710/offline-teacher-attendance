@@ -152,6 +152,7 @@
       <div class="grid two">
         <article class="card"><h2>Backup / Move to Another Device</h2><p>Attendance is stored locally on this device. Export a JSON backup regularly until cloud sync is configured.</p><div id="storageStatus" class="notice">Checking offline storage…</div><div class="button-row" style="justify-content:flex-start;flex-wrap:wrap"><button id="persistStorageBtn" class="secondary">Protect offline storage</button><button id="exportBackupBtn" class="primary">Export backup</button><label class="file-button">Restore backup<input id="restoreBackupFile" type="file" accept="application/json,.json" hidden /></label></div><p class="muted small">Persistent storage reduces the chance that the browser automatically removes local attendance data. It cannot protect against deleting app/site data or losing the device.</p></article>
         <article class="card"><h2>Install / Run Correctly</h2><ol><li><strong>First visit requires internet.</strong> Open the GitHub Pages link once so the app files can be cached.</li><li><strong>Install while online.</strong> Tap <strong>Install app</strong> when available. On iPhone/iPad: Safari → Share → Add to Home Screen.</li><li><strong>After installation:</strong> open the app and take attendance with no internet.</li><li><strong>When internet returns:</strong> online features work again; cloud backup/sync can then run.</li></ol><p class="muted">The installed app keeps attendance on the device. Clearing browser/app data removes that local copy, which is why cloud backup is the next safety layer.</p></article>
+        <article class="card"><h2>Google Drive Cloud Backup <span class="pill">Beta</span></h2><p>Optional cloud backup uses each teacher's own Google Drive <strong>App Data</strong> area. Attendance continues to work offline; Drive is contacted only when internet is available.</p><label>Google OAuth Client ID<input id="googleClientId" placeholder="xxxx.apps.googleusercontent.com" /></label><div class="button-row" style="justify-content:flex-start;flex-wrap:wrap;margin-top:10px"><button id="saveGoogleClientBtn" class="secondary">Save setup</button><button id="googleSignInBtn" class="primary">Connect Google Drive</button><button id="syncNowBtn" class="secondary">Sync now</button><button id="restoreDriveBtn" class="secondary">Restore from Drive</button></div><div id="cloudStatus" class="notice warning" style="margin-top:12px">Google Drive is not connected.</div><p class="muted small">For faculty-wide use, the project owner should configure one OAuth Web Client ID for this GitHub Pages site. The Client ID is public configuration, not a password or secret.</p></article>
       </div>
     </section>
   </main>
@@ -159,13 +160,25 @@
 </div>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
 (() => {
   'use strict';
   const STORAGE_KEY = 'offlineTeacherAttendance.v3';
+  const DB_NAME = 'OfflineTeacherAttendanceDB';
+  const DB_STORE = 'app';
+  const DB_STATE_KEY = 'state';
+  const GOOGLE_CLIENT_ID_KEY = 'offlineTeacherAttendance.googleClientId';
+  const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
+  const DRIVE_FILE_NAME = 'offline-teacher-attendance-backup.json';
   const $ = (id) => document.getElementById(id);
-  const state = loadState();
+  let state = loadState();
   let importStudents = [];
+  let dbPromise = null;
+  let googleTokenClient = null;
+  let googleAccessToken = '';
+  let cloudFileId = '';
+  let syncTimer = null;
   let draft = { courseId:null, date:null, present:new Set(), existing:false, dirty:false };
 
   function loadState(){
@@ -177,7 +190,47 @@
       return x;
     }catch(e){ return {version:3,courses:[]}; }
   }
-  function persist(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+  function openDB(){
+    if(!('indexedDB' in window)) return Promise.resolve(null);
+    if(dbPromise) return dbPromise;
+    dbPromise = new Promise((resolve,reject)=>{
+      const req=indexedDB.open(DB_NAME,1);
+      req.onupgradeneeded=()=>{ const db=req.result; if(!db.objectStoreNames.contains(DB_STORE)) db.createObjectStore(DB_STORE); };
+      req.onsuccess=()=>resolve(req.result);
+      req.onerror=()=>reject(req.error);
+    }).catch(()=>null);
+    return dbPromise;
+  }
+  async function idbSave(value){
+    const db=await openDB(); if(!db) return;
+    await new Promise((resolve)=>{
+      const tx=db.transaction(DB_STORE,'readwrite');
+      tx.objectStore(DB_STORE).put(value,DB_STATE_KEY);
+      tx.oncomplete=()=>resolve(); tx.onerror=()=>resolve();
+    });
+  }
+  async function idbLoad(){
+    const db=await openDB(); if(!db) return null;
+    return await new Promise((resolve)=>{
+      const tx=db.transaction(DB_STORE,'readonly');
+      const req=tx.objectStore(DB_STORE).get(DB_STATE_KEY);
+      req.onsuccess=()=>resolve(req.result||null); req.onerror=()=>resolve(null);
+    });
+  }
+  async function hydrateOfflineDatabase(){
+    const dbState=await idbLoad();
+    if(!localStorage.getItem(STORAGE_KEY) && dbState && Array.isArray(dbState.courses)){
+      state=dbState; localStorage.setItem(STORAGE_KEY,JSON.stringify(state)); renderAll();
+    }else{
+      idbSave(state);
+    }
+  }
+  function persist(){
+    state.lastModified = new Date().toISOString();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    idbSave(state);
+    scheduleCloudSync();
+  }
   function uid(){ return (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36)+Math.random().toString(36).slice(2)); }
   function todayISO(){ const d=new Date(); const z=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`; }
   function fmtDate(s){ if(!s) return ''; const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d).toLocaleDateString(undefined,{day:'2-digit',month:'short',year:'numeric'}); }
@@ -191,7 +244,7 @@
     if(location.protocol==='file:'){ b.textContent='Local file mode'; b.className='badge file'; $('fileModeNotice').classList.remove('hidden'); return; }
     if(navigator.onLine){ b.textContent='Online'; b.className='badge'; } else { b.textContent='Offline'; b.className='badge offline'; }
   }
-  window.addEventListener('online',()=>{ connectionState(); toast('Back online.'); });
+  window.addEventListener('online',()=>{ connectionState(); toast('Back online.'); scheduleCloudSync(800); });
   window.addEventListener('offline',()=>{ connectionState(); toast('Offline mode active.'); });
 
   let deferredInstallPrompt=null;
@@ -227,6 +280,114 @@
     const ok=await navigator.storage.persist().catch(()=>false);
     await updateStorageStatus();
     toast(ok?'Offline storage protection enabled.':'Browser did not grant persistent storage.');
+  };
+
+  function cloudStatus(message,type='warning'){
+    const el=$('cloudStatus'); if(!el) return;
+    el.textContent=message;
+    el.className='notice '+(type==='success'?'success':type==='warning'?'warning':'');
+  }
+  function getGoogleClientId(){ return localStorage.getItem(GOOGLE_CLIENT_ID_KEY)||''; }
+  function initGoogleDrive(){
+    const clientId=getGoogleClientId();
+    if($('googleClientId')) $('googleClientId').value=clientId;
+    if(!clientId){ cloudStatus('Google Drive sync needs a one-time OAuth Client ID setup.','warning'); return false; }
+    if(!window.google?.accounts?.oauth2){ cloudStatus(navigator.onLine?'Google sign-in is still loading. Try Connect again in a moment.':'Offline: Drive sync will resume when internet returns.','warning'); return false; }
+    googleTokenClient = google.accounts.oauth2.initTokenClient({
+      client_id:clientId,
+      scope:DRIVE_SCOPE,
+      callback:async(resp)=>{
+        if(resp.error){ cloudStatus('Google Drive authorization failed: '+resp.error,'warning'); return; }
+        googleAccessToken=resp.access_token||'';
+        cloudStatus('Google Drive connected. Local attendance will auto-backup while this session is authorized.','success');
+        await discoverCloudFile();
+        scheduleCloudSync(300);
+      }
+    });
+    return true;
+  }
+  $('saveGoogleClientBtn').onclick=()=>{
+    const v=$('googleClientId').value.trim();
+    if(!v || !v.endsWith('.apps.googleusercontent.com')) return toast('Enter a valid Google OAuth Client ID.');
+    localStorage.setItem(GOOGLE_CLIENT_ID_KEY,v);
+    googleTokenClient=null; googleAccessToken=''; cloudFileId='';
+    initGoogleDrive(); toast('Google Drive setup saved on this device.');
+  };
+  $('googleSignInBtn').onclick=()=>{
+    if(!navigator.onLine) return toast('Internet is required only to connect/sync Google Drive.');
+    if(!initGoogleDrive()) return;
+    googleTokenClient.requestAccessToken({prompt:'consent'});
+  };
+  async function driveFetch(url,options={}){
+    if(!googleAccessToken) throw new Error('Google Drive is not connected.');
+    const headers=new Headers(options.headers||{});
+    headers.set('Authorization','Bearer '+googleAccessToken);
+    const res=await fetch(url,{...options,headers});
+    if(res.status===401){ googleAccessToken=''; cloudStatus('Drive session expired. Tap Connect Google Drive again.','warning'); throw new Error('Drive session expired.'); }
+    if(!res.ok) throw new Error('Drive API error '+res.status);
+    return res;
+  }
+  async function discoverCloudFile(){
+    if(!googleAccessToken || !navigator.onLine) return '';
+    const q=encodeURIComponent("name='"+DRIVE_FILE_NAME.replaceAll("'","\\'")+"' and trashed=false");
+    const res=await driveFetch('https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q='+q+'&fields=files(id,name,modifiedTime)&orderBy=modifiedTime%20desc&pageSize=1');
+    const data=await res.json();
+    cloudFileId=data.files?.[0]?.id||'';
+    return cloudFileId;
+  }
+  async function ensureCloudFile(){
+    if(cloudFileId) return cloudFileId;
+    await discoverCloudFile();
+    if(cloudFileId) return cloudFileId;
+    const res=await driveFetch('https://www.googleapis.com/drive/v3/files?fields=id',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({name:DRIVE_FILE_NAME,parents:['appDataFolder']})
+    });
+    cloudFileId=(await res.json()).id;
+    return cloudFileId;
+  }
+  async function cloudBackup(silent=false){
+    if(!navigator.onLine || !googleAccessToken) return false;
+    try{
+      const id=await ensureCloudFile();
+      const payload=JSON.stringify({...state,cloudSyncedAt:new Date().toISOString()});
+      await driveFetch('https://www.googleapis.com/upload/drive/v3/files/'+encodeURIComponent(id)+'?uploadType=media',{
+        method:'PATCH',
+        headers:{'Content-Type':'application/json'},
+        body:payload
+      });
+      cloudStatus('Cloud backup up to date · '+new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}),'success');
+      if(!silent) toast('Google Drive backup updated.');
+      return true;
+    }catch(e){
+      cloudStatus('Cloud backup failed: '+e.message,'warning');
+      if(!silent) toast('Cloud backup failed.');
+      return false;
+    }
+  }
+  function scheduleCloudSync(delay=1800){
+    clearTimeout(syncTimer);
+    if(!navigator.onLine || !googleAccessToken) return;
+    syncTimer=setTimeout(()=>cloudBackup(true),delay);
+  }
+  $('syncNowBtn').onclick=async()=>{
+    if(!navigator.onLine) return toast('You are offline. Attendance is safe locally; sync later.');
+    if(!googleAccessToken) return toast('Connect Google Drive first.');
+    await cloudBackup(false);
+  };
+  $('restoreDriveBtn').onclick=async()=>{
+    if(!navigator.onLine) return toast('Internet is required to restore from Drive.');
+    if(!googleAccessToken) return toast('Connect Google Drive first.');
+    try{
+      const id=await ensureCloudFile();
+      const res=await driveFetch('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(id)+'?alt=media');
+      const remote=await res.json();
+      if(!remote || !Array.isArray(remote.courses)) throw new Error('Cloud backup is invalid.');
+      if(!confirm('Replace this device\'s local attendance data with the Google Drive backup?')) return;
+      state=remote; localStorage.setItem(STORAGE_KEY,JSON.stringify(state)); await idbSave(state); renderAll();
+      cloudStatus('Restored from Google Drive.','success'); toast('Cloud backup restored.');
+    }catch(e){ cloudStatus('Restore failed: '+e.message,'warning'); toast('Restore from Drive failed.'); }
   };
 
   function switchView(name){
@@ -405,7 +566,7 @@
     renderStats(); renderPortalSelectors();
   }
 
-  connectionState(); updateInstallUI(); updateStorageStatus(); $('attendanceDate').value=todayISO(); renderAll();
+  connectionState(); updateInstallUI(); updateStorageStatus(); hydrateOfflineDatabase(); initGoogleDrive(); $('attendanceDate').value=todayISO(); renderAll();
   if('serviceWorker' in navigator && (location.protocol==='https:' || location.hostname==='localhost' || location.hostname==='127.0.0.1')){
     navigator.serviceWorker.register('./sw.js').catch(()=>{});
   }
