@@ -9,7 +9,7 @@ const sync=fs.readFileSync(base+'firebase-sync.mjs','utf8');
 const config=fs.readFileSync(base+'firebase-config.mjs','utf8');
 
 for (const id of [
-  'attendanceList','saveAttendanceBtn','firebaseSyncStatus','firebaseSignInBtn',
+  'attendanceList','saveAttendanceBtn','firebaseSyncStatus','googleSignInMount',
   'firebaseSignOutBtn','feedbackRating','feedbackCategory','feedbackMessage','feedbackSubmitBtn'
 ]) {
   if (!html.includes('id="'+id+'"')) fail('Missing required staging element #'+id);
