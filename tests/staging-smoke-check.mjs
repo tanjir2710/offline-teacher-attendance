@@ -21,5 +21,5 @@ if (!sync.includes("environment: 'staging-v08'")) fail('Staging Firestore enviro
 if (!sync.includes("data?.environment !== 'staging-v08'")) fail('Staging Firestore filter missing');
 if (!config.includes('offline-teacher-attendance.firebaseapp.com')) fail('Firebase config missing');
 if (!manifest.start_url) fail('Manifest start_url missing');
-if (!sw.includes('offline-teacher-attendance-staging-v08-')) fail('Staging service-worker cache name missing');
+if (!/classroll-staging-v08-|offline-teacher-attendance-staging-v08-/.test(sw)) fail('Staging service-worker cache name missing');
 console.log('Staging smoke checks passed.');
