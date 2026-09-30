@@ -1,4 +1,4 @@
-const CACHE='offline-teacher-attendance-staging-v08-3';
+const CACHE='offline-teacher-attendance-staging-v08-4';
 const ASSETS=['./','./index.html','./manifest.webmanifest','./icons/icon.svg','./firebase-config.mjs','./firebase-sync.mjs'];
 
 self.addEventListener('install',event=>{
