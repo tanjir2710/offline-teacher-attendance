@@ -58,13 +58,113 @@
     @media(max-width:800px){.grid.two{grid-template-columns:1fr}.form-grid{grid-template-columns:1fr}.span-2{grid-column:auto}.status-strip,.stat-cards{grid-template-columns:1fr 1fr}.student-row{grid-template-columns:48px 1fr;grid-template-areas:"c id" "c name" "flags flags"}.check-wrap{grid-area:c}.student-id{grid-area:id}.student-name{grid-area:name}.student-flags{grid-area:flags;justify-content:flex-start;padding-left:2px}.alert-card{grid-template-columns:1fr}.app-header{align-items:center}.shell{padding:14px 12px 92px}.card{padding:14px}}
     @media(max-width:480px){.status-strip,.stat-cards{grid-template-columns:1fr 1fr}.tab{padding:9px 11px;font-size:.88rem}.toolbar-actions{width:100%}.toolbar-actions button{flex:1 1 44%}}
     @media print{.tabs,.app-header,.no-print,.toast{display:none!important}.shell{max-width:none;padding:0}.view{display:none!important}#view-portal{display:block!important}.card{box-shadow:none;border:0}.table-wrap{border:0}}
+  
+    /* v0.8 RC5 professional UI refresh */
+    :root{
+      --bg:#f7f8fa;--card:#fff;--ink:#111827;--muted:#667085;--line:#e4e7ec;
+      --brand:#2457d6;--brand2:#1d47b4;--ok:#18794e;--okbg:#eef8f3;
+      --warn:#8b6508;--warnbg:#fff8e7;--danger:#b42318;--dangerbg:#fff3f2;
+      --shadow:0 1px 2px rgba(16,24,40,.04);--radius:14px;
+    }
+    body{background:var(--bg);font-size:15px}
+    .shell{max-width:1120px;padding:22px 20px 92px}
+    .app-header{align-items:center;margin:2px 0 18px;padding:4px 2px}
+    .brand-block{min-width:0}.eyebrow{font-size:.72rem;letter-spacing:.12em;font-weight:800;color:#667085;margin-bottom:5px}
+    h1{font-size:1.85rem;letter-spacing:-.035em;margin:0 0 2px;font-weight:760}
+    h2{font-size:1.12rem;letter-spacing:-.015em;margin-bottom:12px}
+    h3{font-size:.94rem}.sub{font-size:.9rem}
+    .header-actions{gap:7px}.meta-badge{display:none}.google-signin-mount{min-height:40px;display:flex;align-items:center}
+    .badge,.pill{font-size:.76rem;padding:6px 9px;font-weight:700;background:#f2f4f7;color:#344054}
+    .badge.offline{background:#fff7ed;color:#9a3412}.badge.file{background:#f2f4f7;color:#475467}
+    .tabs{position:relative;top:auto;overflow:visible;padding:4px;margin:0 0 16px;background:transparent;border:1px solid var(--line);border-radius:12px;width:max-content;max-width:100%;z-index:25}
+    .tab{border:0;background:transparent;padding:9px 14px;border-radius:9px;color:#475467;font-size:.9rem;font-weight:650}
+    .tab:hover{background:#f2f4f7}.tab.active{background:#111827;color:#fff}
+    .nav-count{display:inline-flex;min-width:19px;height:19px;align-items:center;justify-content:center;margin-left:3px;border-radius:999px;background:#eef2ff;color:#3b5ccc;font-size:.69rem;font-weight:800}
+    .tab.active .nav-count{background:rgba(255,255,255,.18);color:#fff}
+    .more-menu{position:absolute;right:4px;top:48px;min-width:190px;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 30px rgba(16,24,40,.12);padding:6px;z-index:80}
+    .more-item{width:100%;justify-content:flex-start;background:#fff;color:#344054;border-radius:8px;padding:10px 11px;font-weight:650}
+    .more-item:hover{background:#f2f4f7}
+    .card{border:1px solid var(--line);box-shadow:var(--shadow);border-radius:var(--radius);padding:18px}
+    .grid{gap:14px}.grid.two{grid-template-columns:1fr 1fr}
+    input,select,textarea{border-color:#d0d5dd;border-radius:9px;padding:10px 11px;background:#fff}
+    input:focus,select:focus,textarea:focus{border-color:#7f9cf5;box-shadow:0 0 0 3px rgba(36,87,214,.09)}
+    textarea{min-height:130px}
+    button,.file-button{border-radius:9px;padding:9px 12px;font-weight:650}
+    .primary{background:var(--brand)}.secondary,.file-button{background:#f2f4f7;color:#344054}
+    .course-card{border-color:var(--line);border-radius:11px;padding:13px 14px}
+    .course-meta{font-size:.8rem}
+    .status-strip,.stat-cards{gap:8px;margin:12px 0 15px}
+    .metric{border-color:var(--line);border-radius:11px;padding:11px 12px;background:#fff}
+    .metric .k{font-size:.72rem;text-transform:uppercase;letter-spacing:.04em}.metric .v{font-size:1.22rem}
+    .attendance-list{gap:5px}
+    .student-row{border:0;border-bottom:1px solid #eaecf0;border-radius:0;padding:10px 6px;background:#fff}
+    .student-row:hover{background:#f9fafb}.student-row.red{background:#fff;border-left:3px solid #d92d20}.student-row.yellow{background:#fff;border-left:3px solid #eaaa08}
+    .student-row.red .student-id,.student-row.red .student-name{color:#9b1c13}.student-row.yellow .student-id,.student-row.yellow .student-name{color:#7a5700}
+    .big-check{width:24px;height:24px}.flag{font-size:.68rem;padding:4px 7px}
+    .save-strip{border-radius:11px;background:#f5f8ff;border-color:#d7e1fb}
+    .save-strip.dirty{background:#fff9eb;border-color:#f0d58c}
+    .empty-state{border:0;background:#f8fafc;border-radius:10px;padding:26px 16px}
+    .notice{border-radius:10px;padding:11px 12px;font-size:.88rem}
+    .chart-wrap,.table-wrap{border-color:var(--line);border-radius:11px}
+    .footer-note{font-size:.76rem;margin-top:22px}
+    #view-backup ol{margin:8px 0;padding-left:22px;color:#475467;font-size:.88rem}
+    #view-backup p{margin-top:7px}
+    #view-feedback .card{max-width:720px}
+    @media(min-width:801px){
+      .course-list-card{order:1}.create-course-card{order:2}
+    }
+    @media(max-width:800px){
+      .shell{padding:14px 12px calc(92px + env(safe-area-inset-bottom))}
+      .app-header{display:block;margin-bottom:12px}.header-actions{justify-content:flex-start;margin-top:10px}
+      .eyebrow{font-size:.66rem}.sub{font-size:.82rem}
+      .tabs{position:fixed;left:0;right:0;bottom:0;top:auto;width:100%;max-width:none;margin:0;padding:7px 6px calc(7px + env(safe-area-inset-bottom));border:0;border-top:1px solid #e4e7ec;border-radius:0;background:rgba(255,255,255,.97);backdrop-filter:blur(12px);display:grid;grid-template-columns:repeat(5,1fr);gap:2px;z-index:90}
+      .tab{min-width:0;padding:8px 3px;font-size:.72rem;line-height:1.1;border-radius:8px;text-align:center}
+      .nav-count{min-width:17px;height:17px;font-size:.62rem;margin-left:1px}
+      .more-menu{position:fixed;left:12px;right:12px;top:auto;bottom:calc(72px + env(safe-area-inset-bottom));min-width:0;border-radius:14px;padding:7px;box-shadow:0 14px 40px rgba(16,24,40,.18)}
+      .more-item{padding:13px 12px;font-size:.95rem}
+      .grid.two{grid-template-columns:1fr}.course-list-card{order:1}.create-course-card{order:2}
+      .card{padding:14px;border-radius:12px}
+      .form-grid{grid-template-columns:1fr}.span-2{grid-column:auto}
+      .status-strip,.stat-cards{grid-template-columns:repeat(2,1fr)}
+      .student-row{grid-template-columns:40px 1fr;grid-template-areas:"c id" "c name" "flags flags";padding:9px 4px}
+      .check-wrap{grid-area:c}.student-id{grid-area:id;font-size:.86rem}.student-name{grid-area:name;font-size:.9rem}.student-flags{grid-area:flags;justify-content:flex-start;padding-left:40px}
+      .save-strip{position:sticky;bottom:76px;z-index:40;box-shadow:0 -4px 14px rgba(16,24,40,.06)}
+      .toolbar-actions{width:100%}.toolbar-actions button{flex:1 1 46%}
+      #studentPaste{min-height:105px}
+      #view-backup .grid.two{display:block}#view-backup .card{margin-bottom:10px}
+      #view-backup ol{font-size:.82rem}
+    }
+    @media(max-width:390px){
+      body{font-size:14px}.shell{padding-left:9px;padding-right:9px}
+      h1{font-size:1.55rem}.card{padding:12px}
+      .tab{font-size:.68rem;padding:8px 1px}
+      .metric{padding:9px}.metric .v{font-size:1.08rem}
+      .header-actions .badge{font-size:.68rem;padding:5px 7px}
+      .google-signin-mount{width:100%;overflow:hidden}
+      .course-actions{width:100%}.course-actions button{flex:1}
+      .course-card{align-items:flex-start;flex-direction:column}
+      .button-row{flex-wrap:wrap;justify-content:flex-start!important}
+    }
+
   </style>
 </head>
 <body>
 <div class="shell">
   <header class="app-header">
-    <div><h1>Offline Teacher Attendance <span class="pill">STAGING</span></h1><p class="sub">Fast checkbox attendance, permanent date history, alerts, statistics, and portal-entry view.</p></div>
-    <div class="header-actions"><div id="connectionBadge" class="badge">Checking…</div><div id="versionBadge" class="badge">v0.8 RC4</div><div id="cloudAuthBadge" class="badge file">Cloud setup pending</div><div id="installStatus" class="badge file">Browser mode</div><div id="googleSignInMount" class="no-print" style="min-height:40px;display:flex;align-items:center"></div><button id="firebaseSignOutBtn" class="secondary no-print hidden">Sign out</button><button id="feedbackShortcutBtn" class="secondary no-print">Give Feedback</button><button id="installBtn" class="primary no-print hidden">Install app</button></div>
+    <div class="brand-block">
+      <div class="eyebrow">TEACHER ATTENDANCE · STAGING</div>
+      <h1>Attendance</h1>
+      <p class="sub">Fast, offline-first class attendance.</p>
+    </div>
+    <div class="header-actions">
+      <div id="connectionBadge" class="badge">Checking…</div>
+      <div id="cloudAuthBadge" class="badge file">Local only</div>
+      <div id="versionBadge" class="badge meta-badge">v0.8 RC5</div>
+      <div id="installStatus" class="badge file meta-badge">Browser mode</div>
+      <div id="googleSignInMount" class="no-print google-signin-mount"></div>
+      <button id="firebaseSignOutBtn" class="secondary no-print hidden">Sign out</button>
+      <button id="installBtn" class="primary no-print hidden">Install app</button>
+    </div>
   </header>
 
   <div id="fileModeNotice" class="notice warning hidden">You opened the app as a local <strong>file</strong>. The attendance app works, but PWA installation/service-worker caching requires <strong>localhost or GitHub Pages</strong>. See the instructions in Backup.</div><div id="updateNotice" class="notice success hidden"><strong>New app version available.</strong> Save any attendance changes, then update. <button id="reloadUpdateBtn" class="secondary" style="margin-left:8px">Update now</button></div>
@@ -72,18 +172,21 @@
   <nav class="tabs no-print" aria-label="Main navigation">
     <button class="tab active" data-view="courses">Courses</button>
     <button class="tab" data-view="attendance">Attendance</button>
-    <button class="tab" data-view="alerts">Alerts <span id="alertNavCount" class="pill">0</span></button>
-    <button class="tab" data-view="statistics">Statistics</button>
-    <button class="tab" data-view="portal">Portal View</button>
-    <button class="tab" data-view="backup">Account & Backup</button>
-    <button class="tab" data-view="feedback">Feedback</button>
+    <button class="tab" data-view="statistics">History</button>
+    <button class="tab" data-view="alerts">Alerts <span id="alertNavCount" class="nav-count">0</span></button>
+    <button id="moreMenuBtn" class="tab more-tab" type="button" aria-expanded="false">More</button>
+    <div id="moreMenu" class="more-menu hidden">
+      <button class="more-item" data-more-view="portal">Portal View</button>
+      <button class="more-item" data-more-view="backup">Sync & Backup</button>
+      <button class="more-item" data-more-view="feedback">Feedback</button>
+    </div>
   </nav>
 
   <main>
     <section id="view-courses" class="view active">
       <div class="grid two">
-        <article class="card">
-          <h2>Create Section / Course</h2>
+        <article class="card create-course-card">
+          <h2>Add course</h2>
           <div class="form-grid">
             <label>Section name<input id="sectionName" placeholder="e.g. 66_P" /></label>
             <label>Course code<input id="courseCode" placeholder="e.g. CSE323" /></label>
@@ -91,7 +194,7 @@
             <label>Alert after total absences<input id="alertThreshold" type="number" min="1" max="30" value="3" /></label>
           </div>
           <h3>Import students</h3>
-          <p class="muted">Copy the <strong>Student ID</strong> and <strong>Name</strong> columns from Google Sheets and paste below. Tab-separated rows are detected automatically.</p>
+          <p class="muted">Paste two columns from Google Sheets: <strong>Student ID</strong> and <strong>Name</strong>.</p>
           <textarea id="studentPaste" rows="9" placeholder="241-15-001[TAB]Student Name"></textarea>
           <div class="button-row" style="justify-content:flex-start;flex-wrap:wrap;margin-top:10px">
             <label class="file-button">Import CSV<input id="csvFile" type="file" accept=".csv,text/csv" hidden /></label>
@@ -102,8 +205,8 @@
           <button id="createCourseBtn" class="primary full">Create course</button>
         </article>
 
-        <article class="card">
-          <div class="card-title-row"><h2>Your Courses</h2><span id="courseCount" class="pill">0</span></div>
+        <article class="card course-list-card">
+          <div class="card-title-row"><h2>Your courses</h2><span id="courseCount" class="pill">0</span></div>
           <div id="courseList" class="course-list empty-state">No courses yet.</div>
         </article>
       </div>
@@ -152,9 +255,9 @@
     <section id="view-backup" class="view">
       <div class="grid two">
         <article class="card"><h2>Automatic Multi‑Device Sync <span class="pill">v0.8 RC</span></h2><p>Sign in with the same Google account on your phone, tablet and computer. Attendance remains available offline; Firestore queues local changes and synchronizes them automatically when internet returns.</p><div id="firebaseSyncStatus" class="notice warning">Automatic sync setup is being checked…</div><p class="muted small">Normal use does not require a Sync button. Google Drive below is retained only as an optional recovery backup.</p></article>
-        <article class="card"><h2>Backup / Move to Another Device</h2><p>Attendance is stored locally on this device. Export a JSON backup regularly until cloud sync is configured.</p><div id="storageStatus" class="notice">Checking offline storage…</div><div id="liveRecoveryStatus" class="notice warning" style="margin-top:10px">Checking for your live v0.7 attendance data…</div><div class="button-row" style="justify-content:flex-start;flex-wrap:wrap"><button id="importLiveDataBtn" class="primary">Import live v0.7 data</button><button id="persistStorageBtn" class="secondary">Protect offline storage</button><button id="exportBackupBtn" class="secondary">Export staging backup</button><label class="file-button">Restore JSON backup<input id="restoreBackupFile" type="file" accept="application/json,.json" hidden /></label></div><p class="muted small">Persistent storage reduces the chance that the browser automatically removes local attendance data. It cannot protect against deleting app/site data or losing the device.</p></article>
-        <article class="card"><h2>Install / Run Correctly</h2><ol><li><strong>First visit requires internet.</strong> Open the GitHub Pages link once so the app files can be cached.</li><li><strong>Install while online.</strong> Tap <strong>Install app</strong> when available. On iPhone/iPad: Safari → Share → Add to Home Screen.</li><li><strong>After installation:</strong> open the app and take attendance with no internet.</li><li><strong>When internet returns:</strong> online features work again; cloud backup/sync can then run.</li></ol><p class="muted">The installed app keeps attendance on the device. Clearing browser/app data removes that local copy, which is why cloud backup is the next safety layer.</p></article>
-        <article id="cloudSyncCard" class="card"><h2>Google Drive Recovery Backup <span class="pill">Optional</span></h2><p>This is kept as a secondary recovery path. The new production design uses Firebase/Firestore for live automatic multi-device synchronization.</p><div id="adminGoogleSetup" class="hidden"><label>Admin OAuth Client ID<input id="googleClientId" placeholder="xxxx.apps.googleusercontent.com" /></label><div class="button-row" style="justify-content:flex-start;flex-wrap:wrap;margin-top:10px"><button id="saveGoogleClientBtn" class="secondary">Save admin setup</button></div></div><div class="button-row" style="justify-content:flex-start;flex-wrap:wrap;margin-top:10px"><button id="googleSignInBtn" class="primary">Connect Google Drive</button><button id="syncNowBtn" class="secondary">Update Drive backup</button><button id="restoreDriveBtn" class="secondary">Restore from Drive</button></div><div id="cloudStatus" class="notice warning" style="margin-top:12px">Google Drive is not connected.</div><p id="cloudHelp" class="muted small">Use this only for recovery/backup. Firestore automatic sync is the primary multi-device system in v0.8.</p></article>
+        <article class="card"><h2>Recovery</h2><p class="muted">Import previous data or keep a local recovery file.</p><div id="storageStatus" class="notice">Checking offline storage…</div><div id="liveRecoveryStatus" class="notice warning" style="margin-top:10px">Checking for your live v0.7 attendance data…</div><div class="button-row" style="justify-content:flex-start;flex-wrap:wrap"><button id="importLiveDataBtn" class="primary">Import live v0.7 data</button><button id="persistStorageBtn" class="secondary">Protect offline storage</button><button id="exportBackupBtn" class="secondary">Export staging backup</button><label class="file-button">Restore JSON backup<input id="restoreBackupFile" type="file" accept="application/json,.json" hidden /></label></div><p class="muted small">Persistent storage reduces the chance that the browser automatically removes local attendance data. It cannot protect against deleting app/site data or losing the device.</p></article>
+        <article class="card"><h2>Install & offline use</h2><ol><li><strong>First visit requires internet.</strong> Open the GitHub Pages link once so the app files can be cached.</li><li><strong>Install while online.</strong> Tap <strong>Install app</strong> when available. On iPhone/iPad: Safari → Share → Add to Home Screen.</li><li><strong>After installation:</strong> open the app and take attendance with no internet.</li><li><strong>When internet returns:</strong> online features work again; cloud backup/sync can then run.</li></ol><p class="muted">The installed app keeps attendance on the device. Clearing browser/app data removes that local copy, which is why cloud backup is the next safety layer.</p></article>
+        <article id="cloudSyncCard" class="card"><h2>Drive backup <span class="pill">Optional</span></h2><p>This is kept as a secondary recovery path. The new production design uses Firebase/Firestore for live automatic multi-device synchronization.</p><div id="adminGoogleSetup" class="hidden"><label>Admin OAuth Client ID<input id="googleClientId" placeholder="xxxx.apps.googleusercontent.com" /></label><div class="button-row" style="justify-content:flex-start;flex-wrap:wrap;margin-top:10px"><button id="saveGoogleClientBtn" class="secondary">Save admin setup</button></div></div><div class="button-row" style="justify-content:flex-start;flex-wrap:wrap;margin-top:10px"><button id="googleSignInBtn" class="primary">Connect Google Drive</button><button id="syncNowBtn" class="secondary">Update Drive backup</button><button id="restoreDriveBtn" class="secondary">Restore from Drive</button></div><div id="cloudStatus" class="notice warning" style="margin-top:12px">Google Drive is not connected.</div><p id="cloudHelp" class="muted small">Use this only for recovery/backup. Firestore automatic sync is the primary multi-device system in v0.8.</p></article>
       </div>
     </section>
 
@@ -202,7 +305,7 @@
   const LIVE_STORAGE_KEY = 'offlineTeacherAttendance.v3';
   const STORAGE_KEY = 'offlineTeacherAttendance.stagingV08';
   const PRE_V08_BACKUP_KEY = 'offlineTeacherAttendance.stagingV08.preMigrationBackup';
-  const APP_VERSION = '0.8.0-rc4';
+  const APP_VERSION = '0.8.0-rc5';
   const DB_NAME = 'OfflineTeacherAttendanceDB-StagingV08';
   const DB_STORE = 'app';
   const DB_STATE_KEY = 'state';
@@ -616,11 +719,29 @@
 
   function switchView(name){
     document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===`view-${name}`));
-    document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.view===name));
-    if(name==='alerts') renderAlerts(); if(name==='statistics') renderStats(); if(name==='portal') renderPortalSelectors();
+    document.querySelectorAll('.tab[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===name));
+    const secondary=['portal','backup','feedback'].includes(name);
+    $('moreMenuBtn')?.classList.toggle('active',secondary);
+    $('moreMenu')?.classList.add('hidden');
+    $('moreMenuBtn')?.setAttribute('aria-expanded','false');
+    if(name==='alerts') renderAlerts();
+    if(name==='statistics') renderStats();
+    if(name==='portal') renderPortalSelectors();
+    window.scrollTo({top:0,behavior:'smooth'});
   }
-  document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>switchView(b.dataset.view)));
-  $('feedbackShortcutBtn').onclick=()=>switchView('feedback');
+  document.querySelectorAll('.tab[data-view]').forEach(b=>b.addEventListener('click',()=>switchView(b.dataset.view)));
+  $('moreMenuBtn').onclick=()=>{
+    const menu=$('moreMenu');
+    const open=menu.classList.toggle('hidden')===false;
+    $('moreMenuBtn').setAttribute('aria-expanded',String(open));
+  };
+  document.querySelectorAll('[data-more-view]').forEach(b=>b.addEventListener('click',()=>switchView(b.dataset.moreView)));
+  document.addEventListener('click',e=>{
+    if(!$('moreMenu')?.contains(e.target) && e.target!==$('moreMenuBtn')){
+      $('moreMenu')?.classList.add('hidden');
+      $('moreMenuBtn')?.setAttribute('aria-expanded','false');
+    }
+  });
 
   function parseRoster(text){
     const out=[]; const seen=new Set();
