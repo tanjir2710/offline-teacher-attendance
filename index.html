@@ -64,7 +64,7 @@
 <div class="shell">
   <header class="app-header">
     <div><h1>Offline Teacher Attendance</h1><p class="sub">Fast checkbox attendance, permanent date history, alerts, statistics, and portal-entry view.</p></div>
-    <div class="header-actions"><div id="connectionBadge" class="badge">Checking…</div><div id="versionBadge" class="badge">v0.8 RC1</div><div id="cloudAuthBadge" class="badge file">Cloud setup pending</div><div id="installStatus" class="badge file">Browser mode</div><button id="firebaseSignInBtn" class="primary no-print">Sign in with Google</button><button id="firebaseSignOutBtn" class="secondary no-print hidden">Sign out</button><button id="feedbackShortcutBtn" class="secondary no-print">Give Feedback</button><button id="installBtn" class="primary no-print hidden">Install app</button></div>
+    <div class="header-actions"><div id="connectionBadge" class="badge">Checking…</div><div id="versionBadge" class="badge">v0.7.2 Recovery</div><div id="installStatus" class="badge file">Browser mode</div><button id="cloudShortcutBtn" class="secondary no-print">Drive Backup</button><button id="installBtn" class="primary no-print hidden">Install app</button></div>
   </header>
 
   <div id="fileModeNotice" class="notice warning hidden">You opened the app as a local <strong>file</strong>. The attendance app works, but PWA installation/service-worker caching requires <strong>localhost or GitHub Pages</strong>. See the instructions in Backup.</div><div id="updateNotice" class="notice success hidden"><strong>New app version available.</strong> Save any attendance changes, then update. <button id="reloadUpdateBtn" class="secondary" style="margin-left:8px">Update now</button></div>
@@ -75,8 +75,7 @@
     <button class="tab" data-view="alerts">Alerts <span id="alertNavCount" class="pill">0</span></button>
     <button class="tab" data-view="statistics">Statistics</button>
     <button class="tab" data-view="portal">Portal View</button>
-    <button class="tab" data-view="backup">Account & Backup</button>
-    <button class="tab" data-view="feedback">Feedback</button>
+    <button class="tab" data-view="backup">Backup & Sync</button>
   </nav>
 
   <main>
@@ -151,47 +150,13 @@
 
     <section id="view-backup" class="view">
       <div class="grid two">
-        <article class="card"><h2>Automatic Multi‑Device Sync <span class="pill">v0.8 RC</span></h2><p>Sign in with the same Google account on your phone, tablet and computer. Attendance remains available offline; Firestore queues local changes and synchronizes them automatically when internet returns.</p><div id="firebaseSyncStatus" class="notice warning">Automatic sync setup is being checked…</div><p class="muted small">Normal use does not require a Sync button. Google Drive below is retained only as an optional recovery backup.</p></article>
         <article class="card"><h2>Backup / Move to Another Device</h2><p>Attendance is stored locally on this device. Export a JSON backup regularly until cloud sync is configured.</p><div id="storageStatus" class="notice">Checking offline storage…</div><div class="button-row" style="justify-content:flex-start;flex-wrap:wrap"><button id="persistStorageBtn" class="secondary">Protect offline storage</button><button id="exportBackupBtn" class="primary">Export backup</button><label class="file-button">Restore backup<input id="restoreBackupFile" type="file" accept="application/json,.json" hidden /></label></div><p class="muted small">Persistent storage reduces the chance that the browser automatically removes local attendance data. It cannot protect against deleting app/site data or losing the device.</p></article>
         <article class="card"><h2>Install / Run Correctly</h2><ol><li><strong>First visit requires internet.</strong> Open the GitHub Pages link once so the app files can be cached.</li><li><strong>Install while online.</strong> Tap <strong>Install app</strong> when available. On iPhone/iPad: Safari → Share → Add to Home Screen.</li><li><strong>After installation:</strong> open the app and take attendance with no internet.</li><li><strong>When internet returns:</strong> online features work again; cloud backup/sync can then run.</li></ol><p class="muted">The installed app keeps attendance on the device. Clearing browser/app data removes that local copy, which is why cloud backup is the next safety layer.</p></article>
-        <article id="cloudSyncCard" class="card"><h2>Google Drive Recovery Backup <span class="pill">Optional</span></h2><p>This is kept as a secondary recovery path. The new production design uses Firebase/Firestore for live automatic multi-device synchronization.</p><div id="adminGoogleSetup" class="hidden"><label>Admin OAuth Client ID<input id="googleClientId" placeholder="xxxx.apps.googleusercontent.com" /></label><div class="button-row" style="justify-content:flex-start;flex-wrap:wrap;margin-top:10px"><button id="saveGoogleClientBtn" class="secondary">Save admin setup</button></div></div><div class="button-row" style="justify-content:flex-start;flex-wrap:wrap;margin-top:10px"><button id="googleSignInBtn" class="primary">Connect Google Drive</button><button id="syncNowBtn" class="secondary">Update Drive backup</button><button id="restoreDriveBtn" class="secondary">Restore from Drive</button></div><div id="cloudStatus" class="notice warning" style="margin-top:12px">Google Drive is not connected.</div><p id="cloudHelp" class="muted small">Use this only for recovery/backup. Firestore automatic sync is the primary multi-device system in v0.8.</p></article>
+        <article id="cloudSyncCard" class="card"><h2>Google Drive Multi‑Device Sync <span class="pill">Beta</span></h2><p>Use the <strong>same Google account on every device</strong>. Courses, student lists, attendance, alerts and statistics are merged through that teacher's private Google Drive App Data area whenever the devices are online.</p><div id="adminGoogleSetup" class="hidden"><label>Admin OAuth Client ID<input id="googleClientId" placeholder="xxxx.apps.googleusercontent.com" /></label><div class="button-row" style="justify-content:flex-start;flex-wrap:wrap;margin-top:10px"><button id="saveGoogleClientBtn" class="secondary">Save admin setup</button></div></div><div class="button-row" style="justify-content:flex-start;flex-wrap:wrap;margin-top:10px"><button id="googleSignInBtn" class="primary">Connect Google Drive</button><button id="syncNowBtn" class="secondary">Sync all devices</button><button id="restoreDriveBtn" class="secondary">Restore from Drive</button></div><div id="cloudStatus" class="notice warning" style="margin-top:12px">Google Drive is not connected.</div><p id="cloudHelp" class="muted small">For the same data on phone, tablet and computer, connect the same Google account on each device. Offline changes will merge when that device reconnects.</p></article>
       </div>
     </section>
-
-    <section id="view-feedback" class="view">
-      <article class="card">
-        <div class="card-title-row" style="align-items:flex-start"><div><h2>Give Feedback</h2><p class="muted">Report a bug, usability problem, or suggestion. Feedback is sent to the project owner when you are signed in; if Firestore is offline-capable on your browser, queued feedback can send after reconnection.</p></div></div>
-        <div class="form-grid">
-          <label>Rating
-            <select id="feedbackRating">
-              <option value="">Choose</option>
-              <option value="5">5 - Excellent</option>
-              <option value="4">4 - Good</option>
-              <option value="3">3 - Fair</option>
-              <option value="2">2 - Difficult</option>
-              <option value="1">1 - Poor</option>
-            </select>
-          </label>
-          <label>Type
-            <select id="feedbackCategory">
-              <option>Bug</option>
-              <option>Usability</option>
-              <option>Suggestion</option>
-              <option>Sync</option>
-              <option>Portal workflow</option>
-              <option>General</option>
-            </select>
-          </label>
-          <label class="span-2">Your feedback
-            <textarea id="feedbackMessage" rows="6" placeholder="What happened? What would make the app better?"></textarea>
-          </label>
-        </div>
-        <button id="feedbackSubmitBtn" class="primary" style="margin-top:12px">Submit feedback</button>
-        <p class="muted small">Do not include passwords, OTPs, or other credentials in feedback.</p>
-      </article>
-    </section>
   </main>
-  <p class="footer-note">Offline-first attendance. Signed-in users can use automatic multi-device sync; Google Drive remains optional recovery backup.</p>
+  <p class="footer-note">Student data remains on this device unless you export a backup.</p>
 </div>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
@@ -200,7 +165,7 @@
 (() => {
   'use strict';
   const STORAGE_KEY = 'offlineTeacherAttendance.v3';
-  const APP_VERSION = '0.8.0-rc1';
+  const APP_VERSION = '0.7.2-recovery';
   const DB_NAME = 'OfflineTeacherAttendanceDB';
   const DB_STORE = 'app';
   const DB_STATE_KEY = 'state';
@@ -272,7 +237,6 @@
   function persist(){
     state.lastModified = new Date().toISOString();
     saveLocalState();
-    window.dispatchEvent(new CustomEvent('attendance-local-change'));
     scheduleCloudSync();
   }
   function uid(){ return (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36)+Math.random().toString(36).slice(2)); }
@@ -594,7 +558,7 @@
     if(name==='alerts') renderAlerts(); if(name==='statistics') renderStats(); if(name==='portal') renderPortalSelectors();
   }
   document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>switchView(b.dataset.view)));
-  $('feedbackShortcutBtn').onclick=()=>switchView('feedback');
+  $('cloudShortcutBtn').onclick=()=>{ switchView('backup'); setTimeout(()=>$('cloudSyncCard')?.scrollIntoView({behavior:'smooth',block:'center'}),50); };
 
   function parseRoster(text){
     const out=[]; const seen=new Set();
@@ -765,17 +729,6 @@
     renderStats(); renderPortalSelectors();
   }
 
-  window.AttendanceAppBridge = {
-    getState(){ return deepCopy(normalizeSyncState(state)); },
-    mergeRemote(remote,{render=true}={}){
-      state=mergeStates(state,remote);
-      saveLocalState();
-      if(render) renderAll();
-      return deepCopy(state);
-    },
-    notify(message){ toast(message); }
-  };
-
   connectionState(); updateInstallUI(); updateStorageStatus(); initGoogleDrive(); $('attendanceDate').value=todayISO(); renderAll(); hydrateOfflineDatabase().then(()=>{ state=normalizeSyncState(state); saveLocalState(); renderAll(); });
   if('serviceWorker' in navigator && (location.protocol==='https:' || location.hostname==='localhost' || location.hostname==='127.0.0.1')){
     let swReg=null, controllerChanging=false;
@@ -806,6 +759,5 @@
   }
 })();
 </script>
-<script type="module" src="./firebase-sync.mjs"></script>
 </body>
 </html>
