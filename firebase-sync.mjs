@@ -15,6 +15,7 @@ import {
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
 import {
   initializeFirestore,
+  getFirestore,
   persistentLocalCache,
   persistentMultipleTabManager,
   collection,
@@ -79,9 +80,9 @@ function trustedDeviceNotice() {
 
 function shouldUseRedirect() {
   const ua = navigator.userAgent || '';
-  const iOS = /iPad|iPhone|iPod/i.test(ua);
-  const standalone = window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true;
-  return iOS || standalone;
+  // Prefer popup on desktop/Android including installed PWAs. Use redirect only on iOS,
+  // where standalone browser windows are more restrictive with popups.
+  return /iPad|iPhone|iPod/i.test(ua);
 }
 
 async function waitForBridge() {
@@ -101,11 +102,22 @@ if (!firebaseConfigured) {
 } else {
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
-  await setPersistence(auth, browserLocalPersistence);
 
-  const db = initializeFirestore(app, {
-    localCache: persistentLocalCache({tabManager: persistentMultipleTabManager()})
-  });
+  try {
+    await setPersistence(auth, browserLocalPersistence);
+  } catch (err) {
+    console.warn('Firebase auth persistence fallback:', err);
+  }
+
+  let db;
+  try {
+    db = initializeFirestore(app, {
+      localCache: persistentLocalCache({tabManager: persistentMultipleTabManager()})
+    });
+  } catch (err) {
+    console.warn('Persistent Firestore cache unavailable; using standard Firestore:', err);
+    db = getFirestore(app);
+  }
 
   trustedDeviceNotice();
   const provider = new GoogleAuthProvider();
@@ -201,7 +213,10 @@ if (!firebaseConfigured) {
 
   if ($('firebaseSignInBtn')) {
     $('firebaseSignInBtn').onclick = async () => {
+      const btn=$('firebaseSignInBtn');
       try {
+        btn.disabled=true;
+        btn.textContent='Signing in…';
         setStatus('Opening Google sign-in…', 'warning');
         if (shouldUseRedirect()) {
           await signInWithRedirect(auth, provider);
@@ -209,7 +224,11 @@ if (!firebaseConfigured) {
           await signInWithPopup(auth, provider);
         }
       } catch (err) {
-        setStatus('Google sign-in failed: ' + (err?.message || String(err)), 'warning');
+        const code=err?.code || 'unknown';
+        setStatus('Google sign-in failed ('+code+'): ' + (err?.message || String(err)), 'warning');
+      } finally {
+        btn.disabled=false;
+        btn.textContent='Sign in with Google';
       }
     };
   }
