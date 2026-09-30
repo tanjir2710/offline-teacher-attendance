@@ -1,0 +1,837 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Attendance" />
+  <title>Offline Teacher Attendance — v0.8 Staging</title>
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="./icons/icon.svg" />
+  <style>
+    :root{
+      --bg:#f5f7fb;--card:#ffffff;--ink:#172033;--muted:#667085;--line:#d8dee9;
+      --brand:#1f5eff;--brand2:#1648c8;--ok:#0e7a42;--okbg:#eaf8f0;
+      --warn:#8a5d00;--warnbg:#fff4cc;--danger:#a51d25;--dangerbg:#ffe5e7;
+      --shadow:0 8px 24px rgba(15,23,42,.08);--radius:18px;
+    }
+    *{box-sizing:border-box} html{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--ink)}
+    body{margin:0;min-height:100vh;background:var(--bg)} button,input,select,textarea{font:inherit}
+    button{cursor:pointer}.hidden{display:none!important}
+    .shell{max-width:1180px;margin:0 auto;padding:18px 18px 96px}
+    .app-header{display:flex;gap:18px;align-items:flex-start;justify-content:space-between;margin-bottom:14px}.header-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+    h1{font-size:clamp(1.65rem,4vw,2.4rem);margin:0 0 4px;letter-spacing:-.03em} h2{margin:0 0 14px;font-size:1.28rem} h3{margin:20px 0 8px;font-size:1rem}
+    p{line-height:1.5}.sub{margin:0;color:var(--muted)}
+    .badge,.pill{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border-radius:999px;background:#eef2ff;color:#2443a8;font-size:.82rem;font-weight:700;white-space:nowrap}
+    .badge.offline{background:#fff0d7;color:#8a5200}.badge.file{background:#f2ecff;color:#6b35b2}
+    .tabs{display:flex;gap:8px;overflow:auto;padding:6px 0 14px;position:sticky;top:0;background:linear-gradient(var(--bg) 80%,rgba(245,247,251,0));z-index:15}
+    .tab{border:1px solid var(--line);background:#fff;padding:10px 14px;border-radius:12px;color:#364152;font-weight:700;white-space:nowrap}
+    .tab.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+    .view{display:none}.view.active{display:block}
+    .grid{display:grid;gap:16px}.grid.two{grid-template-columns:1.08fr .92fr}
+    .card{background:var(--card);border:1px solid #e2e7ef;border-radius:var(--radius);box-shadow:var(--shadow);padding:18px}
+    .card-title-row,.toolbar,.summary-row,.button-row{display:flex;gap:12px;align-items:center;justify-content:space-between}
+    .toolbar{align-items:end;flex-wrap:wrap}.toolbar .grow{flex:1 1 220px}.toolbar-actions{display:flex;gap:8px;flex-wrap:wrap}
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.span-2{grid-column:span 2}
+    label{display:grid;gap:6px;color:#344054;font-size:.9rem;font-weight:700}
+    input,select,textarea{width:100%;border:1px solid #cbd3df;border-radius:12px;background:#fff;padding:11px 12px;color:var(--ink);outline:none}
+    input:focus,select:focus,textarea:focus{border-color:#7799ff;box-shadow:0 0 0 3px rgba(31,94,255,.11)} textarea{resize:vertical;min-height:170px;line-height:1.4}
+    button,.file-button{border:0;border-radius:11px;padding:10px 13px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:7px}
+    .primary{background:var(--brand);color:#fff}.primary:hover{background:var(--brand2)}.secondary,.file-button{background:#edf2f7;color:#263241}.danger{background:var(--dangerbg);color:var(--danger)}.ghost{background:transparent;border:1px solid #efb8bd}.full{width:100%;margin-top:12px}
+    .muted{color:var(--muted);font-size:.9rem}.small{font-size:.82rem}.empty-state{padding:28px;text-align:center;color:var(--muted);border:1px dashed #cfd7e4;border-radius:14px;background:#fafcff}
+    .course-list{display:grid;gap:10px}.course-card{border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;justify-content:space-between;gap:12px;align-items:center}.course-card strong{display:block}.course-meta{font-size:.84rem;color:var(--muted);margin-top:3px}.course-actions{display:flex;gap:7px;flex-wrap:wrap}
+    .preview{margin-top:10px;border:1px solid var(--line);border-radius:12px;max-height:230px;overflow:auto}.preview table{width:100%;border-collapse:collapse}.preview td,.preview th{padding:8px 10px;border-bottom:1px solid #edf0f4;text-align:left;font-size:.86rem}
+    .status-strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:14px 0}.metric{border:1px solid var(--line);border-radius:14px;padding:12px;background:#fbfcfe}.metric .k{font-size:.78rem;color:var(--muted);font-weight:700}.metric .v{font-size:1.35rem;font-weight:900;margin-top:2px}
+    .attendance-list{display:grid;gap:8px}.student-row{display:grid;grid-template-columns:54px minmax(130px,.85fr) minmax(180px,1.3fr) auto;align-items:center;gap:10px;border:1px solid #e1e6ed;border-radius:14px;padding:11px 12px;background:#fff;transition:.12s}.student-row:hover{border-color:#bcc8d9}
+    .student-row.red{background:var(--dangerbg);border-color:#f3a9af}.student-row.yellow{background:var(--warnbg);border-color:#efd783}
+    .student-row.red .student-id,.student-row.red .student-name{color:var(--danger);font-weight:900}.student-row.yellow .student-id,.student-row.yellow .student-name{color:var(--warn);font-weight:850}
+    .check-wrap{display:flex;align-items:center;justify-content:center}.big-check{width:28px;height:28px;accent-color:var(--brand);cursor:pointer}.student-id{font-weight:800}.student-name{font-weight:650}.student-flags{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}.flag{padding:5px 8px;border-radius:999px;background:#f0f3f7;color:#516071;font-size:.74rem;font-weight:800}.flag.red{background:#ffcbd0;color:#8e1219}.flag.yellow{background:#ffeaa1;color:#755000}
+    .save-strip{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 14px;background:#eef4ff;border:1px solid #c9d8ff;border-radius:14px;margin:12px 0}.save-strip.dirty{background:#fff7df;border-color:#efd889}
+    .alerts-grid{display:grid;gap:10px}.alert-card{border-radius:14px;padding:13px 14px;border:1px solid var(--line);display:grid;grid-template-columns:minmax(120px,.7fr) minmax(180px,1.3fr) auto;gap:10px;align-items:center}.alert-card.red{background:var(--dangerbg);border-color:#f1a7ad}.alert-card.yellow{background:var(--warnbg);border-color:#edd57e}
+    .table-wrap{overflow:auto;border:1px solid var(--line);border-radius:14px}.table-wrap table{width:100%;border-collapse:collapse;min-width:560px}.table-wrap th,.table-wrap td{padding:10px 11px;border-bottom:1px solid #edf0f4;text-align:left;font-size:.88rem}.table-wrap th{background:#f5f7fb;position:sticky;top:0;z-index:1}.table-wrap tr:last-child td{border-bottom:0}
+    .stat-cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:12px 0 18px}.chart-wrap{border:1px solid var(--line);border-radius:14px;padding:12px;background:#fff}.chart-wrap canvas{width:100%;height:340px;display:block}
+    .notice{border:1px solid #dec6ff;background:#f5efff;color:#603e90;border-radius:14px;padding:12px 14px;margin:10px 0}.success{border-color:#b7e0ca;background:#eefaf3;color:#19643a}.warning{border-color:#efd789;background:#fff7df;color:#775400}
+    .toast{position:fixed;right:18px;bottom:18px;max-width:360px;background:#18212f;color:#fff;padding:12px 14px;border-radius:12px;box-shadow:var(--shadow);opacity:0;transform:translateY(12px);pointer-events:none;transition:.2s;z-index:100}.toast.show{opacity:1;transform:none}
+    .footer-note{margin-top:18px;color:var(--muted);font-size:.82rem;text-align:center}
+    @media(max-width:800px){.grid.two{grid-template-columns:1fr}.form-grid{grid-template-columns:1fr}.span-2{grid-column:auto}.status-strip,.stat-cards{grid-template-columns:1fr 1fr}.student-row{grid-template-columns:48px 1fr;grid-template-areas:"c id" "c name" "flags flags"}.check-wrap{grid-area:c}.student-id{grid-area:id}.student-name{grid-area:name}.student-flags{grid-area:flags;justify-content:flex-start;padding-left:2px}.alert-card{grid-template-columns:1fr}.app-header{align-items:center}.shell{padding:14px 12px 92px}.card{padding:14px}}
+    @media(max-width:480px){.status-strip,.stat-cards{grid-template-columns:1fr 1fr}.tab{padding:9px 11px;font-size:.88rem}.toolbar-actions{width:100%}.toolbar-actions button{flex:1 1 44%}}
+    @media print{.tabs,.app-header,.no-print,.toast{display:none!important}.shell{max-width:none;padding:0}.view{display:none!important}#view-portal{display:block!important}.card{box-shadow:none;border:0}.table-wrap{border:0}}
+  </style>
+</head>
+<body>
+<div class="shell">
+  <header class="app-header">
+    <div><h1>Offline Teacher Attendance <span class="pill">STAGING</span></h1><p class="sub">Fast checkbox attendance, permanent date history, alerts, statistics, and portal-entry view.</p></div>
+    <div class="header-actions"><div id="connectionBadge" class="badge">Checking…</div><div id="versionBadge" class="badge">v0.8 RC1</div><div id="cloudAuthBadge" class="badge file">Cloud setup pending</div><div id="installStatus" class="badge file">Browser mode</div><button id="firebaseSignInBtn" class="primary no-print">Sign in with Google</button><button id="firebaseSignOutBtn" class="secondary no-print hidden">Sign out</button><button id="feedbackShortcutBtn" class="secondary no-print">Give Feedback</button><button id="installBtn" class="primary no-print hidden">Install app</button></div>
+  </header>
+
+  <div id="fileModeNotice" class="notice warning hidden">You opened the app as a local <strong>file</strong>. The attendance app works, but PWA installation/service-worker caching requires <strong>localhost or GitHub Pages</strong>. See the instructions in Backup.</div><div id="updateNotice" class="notice success hidden"><strong>New app version available.</strong> Save any attendance changes, then update. <button id="reloadUpdateBtn" class="secondary" style="margin-left:8px">Update now</button></div>
+
+  <nav class="tabs no-print" aria-label="Main navigation">
+    <button class="tab active" data-view="courses">Courses</button>
+    <button class="tab" data-view="attendance">Attendance</button>
+    <button class="tab" data-view="alerts">Alerts <span id="alertNavCount" class="pill">0</span></button>
+    <button class="tab" data-view="statistics">Statistics</button>
+    <button class="tab" data-view="portal">Portal View</button>
+    <button class="tab" data-view="backup">Account & Backup</button>
+    <button class="tab" data-view="feedback">Feedback</button>
+  </nav>
+
+  <main>
+    <section id="view-courses" class="view active">
+      <div class="grid two">
+        <article class="card">
+          <h2>Create Section / Course</h2>
+          <div class="form-grid">
+            <label>Section name<input id="sectionName" placeholder="e.g. 66_P" /></label>
+            <label>Course code<input id="courseCode" placeholder="e.g. CSE323" /></label>
+            <label class="span-2">Course name<input id="courseName" placeholder="e.g. Operating Systems" /></label>
+            <label>Alert after total absences<input id="alertThreshold" type="number" min="1" max="30" value="3" /></label>
+          </div>
+          <h3>Import students</h3>
+          <p class="muted">Copy the <strong>Student ID</strong> and <strong>Name</strong> columns from Google Sheets and paste below. Tab-separated rows are detected automatically.</p>
+          <textarea id="studentPaste" rows="9" placeholder="241-15-001[TAB]Student Name"></textarea>
+          <div class="button-row" style="justify-content:flex-start;flex-wrap:wrap;margin-top:10px">
+            <label class="file-button">Import CSV<input id="csvFile" type="file" accept=".csv,text/csv" hidden /></label>
+            <button id="parsePasteBtn" class="secondary">Preview pasted list</button>
+            <button id="clearImportBtn" class="secondary">Clear</button>
+          </div>
+          <div id="importPreview" class="preview hidden"></div>
+          <button id="createCourseBtn" class="primary full">Create course</button>
+        </article>
+
+        <article class="card">
+          <div class="card-title-row"><h2>Your Courses</h2><span id="courseCount" class="pill">0</span></div>
+          <div id="courseList" class="course-list empty-state">No courses yet.</div>
+        </article>
+      </div>
+    </section>
+
+    <section id="view-attendance" class="view">
+      <article class="card">
+        <div class="toolbar responsive">
+          <label class="grow">Course<select id="attendanceCourseSelect"></select></label>
+          <label>Class date<input id="attendanceDate" type="date" /></label>
+          <div class="toolbar-actions no-print">
+            <button id="markAllBtn" class="secondary">Mark all</button>
+            <button id="clearAllBtn" class="secondary">Clear all</button>
+            <button id="deleteSessionBtn" class="danger ghost">Delete date</button>
+          </div>
+        </div>
+        <div id="attendanceStatus" class="status-strip"></div>
+        <div id="saveStrip" class="save-strip hidden"><div><strong id="saveMessage">New class date</strong><div class="muted small">Tick only present students. Press Save when finished.</div></div><button id="saveAttendanceBtn" class="primary">Save attendance</button></div>
+        <div id="attendanceList" class="attendance-list empty-state">Create or choose a course.</div>
+      </article>
+    </section>
+
+    <section id="view-alerts" class="view">
+      <article class="card">
+        <div class="card-title-row" style="align-items:flex-start"><div><h2>Attendance Alerts</h2><p class="muted"><strong>Red:</strong> missed 2+ consecutive recorded classes. <strong>Yellow:</strong> 2+ total absences without a current 2-class absence streak.</p></div><button id="notificationBtn" class="secondary no-print">Enable notifications</button></div>
+        <div id="alertsList" class="empty-state">No alerts.</div>
+      </article>
+    </section>
+
+    <section id="view-statistics" class="view">
+      <article class="card">
+        <div class="toolbar"><label class="grow">Course<select id="statsCourseSelect"></select></label></div>
+        <div class="stat-cards" id="statsSummary"></div>
+        <div class="chart-wrap"><h3>Attendance rate by class date</h3><canvas id="attendanceChart" width="1000" height="420"></canvas></div>
+        <div class="grid two" style="margin-top:16px"><div><h3>Class history</h3><div id="sessionStatsTable" class="table-wrap"></div></div><div><h3>Student attendance</h3><div id="studentStatsTable" class="table-wrap"></div></div></div>
+      </article>
+    </section>
+
+    <section id="view-portal" class="view">
+      <article class="card">
+        <div class="toolbar responsive no-print"><label class="grow">Course<select id="portalCourseSelect"></select></label><label>Recorded date<select id="portalDateSelect"></select></label><div class="toolbar-actions"><button id="copyPresentBtn" class="secondary">Copy present IDs</button><button id="copyAbsentBtn" class="secondary">Copy absent IDs</button><button id="exportCsvBtn" class="secondary">Export CSV</button><button id="printPortalBtn" class="secondary">Print</button></div></div>
+        <div id="portalSummary" class="status-strip"></div><div id="portalTable" class="table-wrap empty-state">Select a recorded date.</div>
+      </article>
+    </section>
+
+    <section id="view-backup" class="view">
+      <div class="grid two">
+        <article class="card"><h2>Automatic Multi‑Device Sync <span class="pill">v0.8 RC</span></h2><p>Sign in with the same Google account on your phone, tablet and computer. Attendance remains available offline; Firestore queues local changes and synchronizes them automatically when internet returns.</p><div id="firebaseSyncStatus" class="notice warning">Automatic sync setup is being checked…</div><p class="muted small">Normal use does not require a Sync button. Google Drive below is retained only as an optional recovery backup.</p></article>
+        <article class="card"><h2>Backup / Move to Another Device</h2><p>Attendance is stored locally on this device. Export a JSON backup regularly until cloud sync is configured.</p><div id="storageStatus" class="notice">Checking offline storage…</div><div class="button-row" style="justify-content:flex-start;flex-wrap:wrap"><button id="persistStorageBtn" class="secondary">Protect offline storage</button><button id="exportBackupBtn" class="primary">Export backup</button><label class="file-button">Restore backup<input id="restoreBackupFile" type="file" accept="application/json,.json" hidden /></label></div><p class="muted small">Persistent storage reduces the chance that the browser automatically removes local attendance data. It cannot protect against deleting app/site data or losing the device.</p></article>
+        <article class="card"><h2>Install / Run Correctly</h2><ol><li><strong>First visit requires internet.</strong> Open the GitHub Pages link once so the app files can be cached.</li><li><strong>Install while online.</strong> Tap <strong>Install app</strong> when available. On iPhone/iPad: Safari → Share → Add to Home Screen.</li><li><strong>After installation:</strong> open the app and take attendance with no internet.</li><li><strong>When internet returns:</strong> online features work again; cloud backup/sync can then run.</li></ol><p class="muted">The installed app keeps attendance on the device. Clearing browser/app data removes that local copy, which is why cloud backup is the next safety layer.</p></article>
+        <article id="cloudSyncCard" class="card"><h2>Google Drive Recovery Backup <span class="pill">Optional</span></h2><p>This is kept as a secondary recovery path. The new production design uses Firebase/Firestore for live automatic multi-device synchronization.</p><div id="adminGoogleSetup" class="hidden"><label>Admin OAuth Client ID<input id="googleClientId" placeholder="xxxx.apps.googleusercontent.com" /></label><div class="button-row" style="justify-content:flex-start;flex-wrap:wrap;margin-top:10px"><button id="saveGoogleClientBtn" class="secondary">Save admin setup</button></div></div><div class="button-row" style="justify-content:flex-start;flex-wrap:wrap;margin-top:10px"><button id="googleSignInBtn" class="primary">Connect Google Drive</button><button id="syncNowBtn" class="secondary">Update Drive backup</button><button id="restoreDriveBtn" class="secondary">Restore from Drive</button></div><div id="cloudStatus" class="notice warning" style="margin-top:12px">Google Drive is not connected.</div><p id="cloudHelp" class="muted small">Use this only for recovery/backup. Firestore automatic sync is the primary multi-device system in v0.8.</p></article>
+      </div>
+    </section>
+
+    <section id="view-feedback" class="view">
+      <article class="card">
+        <div class="card-title-row" style="align-items:flex-start"><div><h2>Give Feedback</h2><p class="muted">Report a bug, usability problem, or suggestion. Feedback is sent to the project owner when you are signed in; if Firestore is offline-capable on your browser, queued feedback can send after reconnection.</p></div></div>
+        <div class="form-grid">
+          <label>Rating
+            <select id="feedbackRating">
+              <option value="">Choose</option>
+              <option value="5">5 - Excellent</option>
+              <option value="4">4 - Good</option>
+              <option value="3">3 - Fair</option>
+              <option value="2">2 - Difficult</option>
+              <option value="1">1 - Poor</option>
+            </select>
+          </label>
+          <label>Type
+            <select id="feedbackCategory">
+              <option>Bug</option>
+              <option>Usability</option>
+              <option>Suggestion</option>
+              <option>Sync</option>
+              <option>Portal workflow</option>
+              <option>General</option>
+            </select>
+          </label>
+          <label class="span-2">Your feedback
+            <textarea id="feedbackMessage" rows="6" placeholder="What happened? What would make the app better?"></textarea>
+          </label>
+        </div>
+        <button id="feedbackSubmitBtn" class="primary" style="margin-top:12px">Submit feedback</button>
+        <p class="muted small">Do not include passwords, OTPs, or other credentials in feedback.</p>
+      </article>
+    </section>
+  </main>
+  <p class="footer-note">STAGING v0.8 — isolated from the live local attendance database. Firebase sync testing only.</p>
+</div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script>
+(() => {
+  'use strict';
+  const LIVE_STORAGE_KEY = 'offlineTeacherAttendance.v3';
+  const STORAGE_KEY = 'offlineTeacherAttendance.stagingV08';
+  const PRE_V08_BACKUP_KEY = 'offlineTeacherAttendance.stagingV08.preMigrationBackup';
+  const APP_VERSION = '0.8.0-rc1';
+  const DB_NAME = 'OfflineTeacherAttendanceDB-StagingV08';
+  const DB_STORE = 'app';
+  const DB_STATE_KEY = 'state';
+  const GOOGLE_CLIENT_ID_KEY = 'offlineTeacherAttendance.googleClientId';
+  const EMBEDDED_GOOGLE_CLIENT_ID = '460419019734-lhvkcq795cg41k6cet2mvcnmmq3djcht.apps.googleusercontent.com';
+  const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
+  const DRIVE_FILE_NAME = 'offline-teacher-attendance-staging-v08-backup.json';
+  const $ = (id) => document.getElementById(id);
+  if(!localStorage.getItem(STORAGE_KEY)){
+    try{
+      const liveRaw=localStorage.getItem(LIVE_STORAGE_KEY);
+      if(liveRaw){
+        const liveParsed=JSON.parse(liveRaw);
+        if(Array.isArray(liveParsed?.courses)){
+          localStorage.setItem(STORAGE_KEY,liveRaw);
+        }
+      }
+    }catch(e){}
+  }
+  let state = loadState();
+  let importStudents = [];
+  let dbPromise = null;
+  let googleTokenClient = null;
+  let googleAccessToken = '';
+  let cloudFileId = '';
+  let syncTimer = null;
+  let syncInFlight = false;
+  let authWatchdog = null;
+  let draft = { courseId:null, date:null, present:new Set(), existing:false, dirty:false };
+
+  function preservePreV08Snapshot(){
+    try{
+      const raw=localStorage.getItem(STORAGE_KEY);
+      if(raw && !localStorage.getItem(PRE_V08_BACKUP_KEY)){
+        const parsed=JSON.parse(raw);
+        if(Array.isArray(parsed?.courses) && parsed.courses.length){
+          localStorage.setItem(PRE_V08_BACKUP_KEY,raw);
+        }
+      }
+    }catch(e){}
+  }
+  preservePreV08Snapshot();
+
+  function loadState(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(!raw) return {version:3,courses:[]};
+      const x = JSON.parse(raw);
+      if(!Array.isArray(x.courses)) x.courses=[];
+      return x;
+    }catch(e){ return {version:3,courses:[]}; }
+  }
+  function openDB(){
+    if(!('indexedDB' in window)) return Promise.resolve(null);
+    if(dbPromise) return dbPromise;
+    dbPromise = new Promise((resolve,reject)=>{
+      const req=indexedDB.open(DB_NAME,1);
+      req.onupgradeneeded=()=>{ const db=req.result; if(!db.objectStoreNames.contains(DB_STORE)) db.createObjectStore(DB_STORE); };
+      req.onsuccess=()=>resolve(req.result);
+      req.onerror=()=>reject(req.error);
+    }).catch(()=>null);
+    return dbPromise;
+  }
+  async function idbSave(value){
+    const db=await openDB(); if(!db) return;
+    await new Promise((resolve)=>{
+      const tx=db.transaction(DB_STORE,'readwrite');
+      tx.objectStore(DB_STORE).put(value,DB_STATE_KEY);
+      tx.oncomplete=()=>resolve(); tx.onerror=()=>resolve();
+    });
+  }
+  async function idbLoad(){
+    const db=await openDB(); if(!db) return null;
+    return await new Promise((resolve)=>{
+      const tx=db.transaction(DB_STORE,'readonly');
+      const req=tx.objectStore(DB_STORE).get(DB_STATE_KEY);
+      req.onsuccess=()=>resolve(req.result||null); req.onerror=()=>resolve(null);
+    });
+  }
+  async function hydrateOfflineDatabase(){
+    const dbState=await idbLoad();
+    if(!localStorage.getItem(STORAGE_KEY) && dbState && Array.isArray(dbState.courses)){
+      state=dbState;
+      localStorage.setItem(STORAGE_KEY,JSON.stringify(state));
+    }else{
+      idbSave(state);
+    }
+  }
+  function saveLocalState(){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    idbSave(state);
+  }
+  function persist(){
+    state.lastModified = new Date().toISOString();
+    saveLocalState();
+    window.dispatchEvent(new CustomEvent('attendance-local-change'));
+    scheduleCloudSync();
+  }
+  function uid(){ return (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36)+Math.random().toString(36).slice(2)); }
+  function todayISO(){ const d=new Date(); const z=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`; }
+  function fmtDate(s){ if(!s) return ''; const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d).toLocaleDateString(undefined,{day:'2-digit',month:'short',year:'numeric'}); }
+  function esc(s){ return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+  function toast(msg){ const el=$('toast'); el.textContent=msg; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),2200); }
+  function currentCourse(id){ return state.courses.find(c=>c.id===id); }
+  function sortedSessions(c){ return Object.entries(c.sessions||{}).sort((a,b)=>a[0].localeCompare(b[0])); }
+
+  function connectionState(){
+    const b=$('connectionBadge');
+    if(location.protocol==='file:'){ b.textContent='Local file mode'; b.className='badge file'; $('fileModeNotice').classList.remove('hidden'); return; }
+    if(navigator.onLine){ b.textContent='Online'; b.className='badge'; } else { b.textContent='Offline'; b.className='badge offline'; }
+  }
+  window.addEventListener('online',()=>{ connectionState(); toast('Back online.'); scheduleCloudSync(800); });
+  window.addEventListener('offline',()=>{ connectionState(); toast('Offline mode active.'); });
+
+  let deferredInstallPrompt=null;
+  function isStandalone(){ return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone===true; }
+  function updateInstallUI(){
+    const installed=isStandalone();
+    $('installStatus').textContent=installed?'Installed app':'Browser mode';
+    $('installStatus').className=installed?'badge':'badge file';
+    if(installed || location.protocol==='file:') $('installBtn').classList.add('hidden');
+    else $('installBtn').classList.remove('hidden');
+  }
+  window.addEventListener('beforeinstallprompt',(e)=>{ e.preventDefault(); deferredInstallPrompt=e; updateInstallUI(); });
+  window.addEventListener('appinstalled',()=>{ deferredInstallPrompt=null; updateInstallUI(); toast('App installed. You can now open it from your device.'); });
+  $('installBtn').onclick=async()=>{
+    if(isStandalone()) return toast('The app is already installed.');
+    const isiOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+    if(isiOS){ alert('On iPhone/iPad: open this page in Safari, tap Share, then choose Add to Home Screen.'); return; }
+    if(deferredInstallPrompt){ deferredInstallPrompt.prompt(); await deferredInstallPrompt.userChoice; deferredInstallPrompt=null; updateInstallUI(); return; }
+    alert('Use your browser menu and choose Install app or Add to Home screen. If the option is not shown, refresh once while online.');
+  };
+
+  async function updateStorageStatus(){
+    const el=$('storageStatus'); if(!el) return;
+    if(!navigator.storage){ el.textContent='Offline storage is active. This browser does not expose persistent-storage controls.'; return; }
+    const persisted=await navigator.storage.persisted().catch(()=>false);
+    let est=null; try{ est=await navigator.storage.estimate(); }catch(e){}
+    const used=est && est.usage ? Math.round(est.usage/1024/1024*10)/10 : null;
+    el.className='notice '+(persisted?'success':'warning');
+    el.textContent=persisted?('Offline storage is protected'+(used!==null?' · about '+used+' MB used':'')+'.'):'Offline storage is active, but persistent protection has not been granted yet.';
+  }
+  $('persistStorageBtn').onclick=async()=>{
+    if(!navigator.storage || !navigator.storage.persist) return toast('Persistent storage is not supported by this browser.');
+    const ok=await navigator.storage.persist().catch(()=>false);
+    await updateStorageStatus();
+    toast(ok?'Offline storage protection enabled.':'Browser did not grant persistent storage.');
+  };
+
+  function cloudStatus(message,type='warning'){
+    const el=$('cloudStatus'); if(!el) return;
+    el.textContent=message;
+    el.className='notice '+(type==='success'?'success':type==='warning'?'warning':'');
+  }
+  function getGoogleClientId(){ return EMBEDDED_GOOGLE_CLIENT_ID || localStorage.getItem(GOOGLE_CLIENT_ID_KEY) || ''; }
+  function isAdminSetupMode(){ return new URLSearchParams(location.search).get('admin')==='1'; }
+
+  function timeValue(v){ const n=Date.parse(v||''); return Number.isFinite(n)?n:0; }
+  function isoMax(...vals){
+    const n=Math.max(0,...vals.map(timeValue));
+    return n?new Date(n).toISOString():new Date(0).toISOString();
+  }
+  function deepCopy(v){ return JSON.parse(JSON.stringify(v)); }
+  function normalizeSyncState(input){
+    const x=(input && typeof input==='object')?deepCopy(input):{version:4,courses:[]};
+    if(!Array.isArray(x.courses)) x.courses=[];
+    x.deletedCourses ||= {};
+    for(const c of x.courses){
+      c.sessions ||= {};
+      c.deletedSessions ||= {};
+      const sessionTimes=Object.values(c.sessions).map(v=>v?.updatedAt);
+      const deletedTimes=Object.values(c.deletedSessions);
+      c.updatedAt ||= isoMax(c.createdAt,...sessionTimes,...deletedTimes);
+    }
+    x.version=4;
+    x.lastModified ||= isoMax(...x.courses.map(c=>c.updatedAt),...Object.values(x.deletedCourses));
+    return x;
+  }
+  function mergeTimestampMaps(a={},b={}){
+    const out={};
+    for(const k of new Set([...Object.keys(a||{}),...Object.keys(b||{})])){
+      const av=a?.[k], bv=b?.[k];
+      out[k]=timeValue(av)>=timeValue(bv)?av:bv;
+    }
+    return out;
+  }
+  function mergeCourse(localCourse,remoteCourse){
+    if(!localCourse) return normalizeSyncState({courses:[remoteCourse]}).courses[0];
+    if(!remoteCourse) return normalizeSyncState({courses:[localCourse]}).courses[0];
+    const lc=deepCopy(localCourse), rc=deepCopy(remoteCourse);
+    lc.sessions ||= {}; rc.sessions ||= {}; lc.deletedSessions ||= {}; rc.deletedSessions ||= {};
+    const base=timeValue(lc.updatedAt||lc.createdAt)>=timeValue(rc.updatedAt||rc.createdAt)?lc:rc;
+    const out={...deepCopy(base),sessions:{},deletedSessions:mergeTimestampMaps(lc.deletedSessions,rc.deletedSessions)};
+    const dates=new Set([...Object.keys(lc.sessions),...Object.keys(rc.sessions),...Object.keys(out.deletedSessions)]);
+    for(const d of dates){
+      const ls=lc.sessions[d], rs=rc.sessions[d], del=out.deletedSessions[d];
+      let chosen=null;
+      if(ls && rs) chosen=timeValue(ls.updatedAt)>=timeValue(rs.updatedAt)?ls:rs;
+      else chosen=ls||rs||null;
+      if(chosen && timeValue(del)<timeValue(chosen.updatedAt)) out.sessions[d]=deepCopy(chosen);
+    }
+    out.updatedAt=isoMax(
+      lc.updatedAt,rc.updatedAt,lc.createdAt,rc.createdAt,
+      ...Object.values(out.sessions).map(v=>v?.updatedAt),
+      ...Object.values(out.deletedSessions)
+    );
+    return out;
+  }
+  function mergeStates(localState,remoteState){
+    const a=normalizeSyncState(localState), b=normalizeSyncState(remoteState);
+    const deletedCourses=mergeTimestampMaps(a.deletedCourses,b.deletedCourses);
+    const amap=new Map(a.courses.map(c=>[c.id,c])), bmap=new Map(b.courses.map(c=>[c.id,c]));
+    const courses=[];
+    for(const id of new Set([...amap.keys(),...bmap.keys(),...Object.keys(deletedCourses)])){
+      const merged=mergeCourse(amap.get(id),bmap.get(id));
+      if(!merged) continue;
+      if(timeValue(deletedCourses[id])>=timeValue(merged.updatedAt)) continue;
+      courses.push(merged);
+    }
+    courses.sort((x,y)=>(x.section||'').localeCompare(y.section||'')||(x.courseCode||'').localeCompare(y.courseCode||''));
+    return {
+      version:4,
+      courses,
+      deletedCourses,
+      lastModified:isoMax(a.lastModified,b.lastModified,...courses.map(c=>c.updatedAt),...Object.values(deletedCourses))
+    };
+  }
+
+  function initGoogleDrive(){
+    const clientId=getGoogleClientId();
+    const adminMode=isAdminSetupMode();
+    if($('adminGoogleSetup')) $('adminGoogleSetup').classList.toggle('hidden',!adminMode);
+    if($('googleClientId')) $('googleClientId').value=clientId;
+    if(!clientId){
+      cloudStatus(adminMode?'Admin setup required: enter the Google OAuth Client ID above.':'Cloud sync is not enabled by the administrator yet. Attendance still works fully offline.','warning');
+      if($('googleSignInBtn')) $('googleSignInBtn').disabled=true;
+      if($('syncNowBtn')) $('syncNowBtn').disabled=true;
+      if($('restoreDriveBtn')) $('restoreDriveBtn').disabled=true;
+      if($('cloudHelp')) $('cloudHelp').textContent=adminMode?'After the Client ID is saved, faculty will only see Connect Google Drive.':'No Google setup is required from faculty.';
+      return false;
+    }
+    if($('googleSignInBtn')) $('googleSignInBtn').disabled=false;
+    if($('syncNowBtn')) $('syncNowBtn').disabled=false;
+    if($('restoreDriveBtn')) $('restoreDriveBtn').disabled=false;
+    if(!window.google?.accounts?.oauth2){ cloudStatus(navigator.onLine?'Google sign-in is still loading. Try Connect again in a moment.':'Offline: local attendance is available; cloud sync resumes after reconnecting.','warning'); return false; }
+    googleTokenClient = google.accounts.oauth2.initTokenClient({
+      client_id:clientId,
+      scope:DRIVE_SCOPE,
+      callback:(resp)=>{
+        clearTimeout(authWatchdog);
+        $('googleSignInBtn').disabled=false;
+        $('googleSignInBtn').textContent='Connect Google Drive';
+        if(resp.error){
+          cloudStatus('Google authorization failed: '+resp.error+'. Try again in a normal browser window if you are using an installed app.','warning');
+          return;
+        }
+        googleAccessToken=resp.access_token||'';
+        if(!googleAccessToken){
+          cloudStatus('Google sign-in finished without an access token. Please try Connect Google Drive again.','warning');
+          return;
+        }
+        cloudStatus('Google Drive connected. Sync will start now…','success');
+        scheduleCloudSync(400);
+      },
+      error_callback:(err)=>{
+        clearTimeout(authWatchdog);
+        $('googleSignInBtn').disabled=false;
+        $('googleSignInBtn').textContent='Connect Google Drive';
+        const type=err?.type||'unknown_error';
+        cloudStatus('Google sign-in could not complete ('+type+'). If a popup was blocked, allow popups and try again.','warning');
+      }
+    });
+    return true;
+  }
+  $('saveGoogleClientBtn').onclick=()=>{
+    if(!isAdminSetupMode()) return;
+    const v=$('googleClientId').value.trim();
+    if(!v || !v.endsWith('.apps.googleusercontent.com')) return toast('Enter a valid Google OAuth Client ID.');
+    localStorage.setItem(GOOGLE_CLIENT_ID_KEY,v);
+    googleTokenClient=null; googleAccessToken=''; cloudFileId='';
+    initGoogleDrive(); toast('Admin Google Drive setup saved on this device.');
+  };
+  $('googleSignInBtn').onclick=()=>{
+    if(!navigator.onLine) return toast('Internet is required only to connect/sync Google Drive.');
+    if(!initGoogleDrive()) return;
+    clearTimeout(authWatchdog);
+    $('googleSignInBtn').disabled=true;
+    $('googleSignInBtn').textContent='Connecting…';
+    cloudStatus('Opening Google sign-in…','warning');
+    authWatchdog=setTimeout(()=>{
+      $('googleSignInBtn').disabled=false;
+      $('googleSignInBtn').textContent='Connect Google Drive';
+      cloudStatus('Google sign-in is taking too long. Check for a blocked popup. If you are using the installed app, try the same site once in Chrome/Edge/Safari and connect there.','warning');
+    },20000);
+    try{
+      googleTokenClient.requestAccessToken({prompt:'select_account'});
+    }catch(e){
+      clearTimeout(authWatchdog);
+      $('googleSignInBtn').disabled=false;
+      $('googleSignInBtn').textContent='Connect Google Drive';
+      cloudStatus('Could not open Google sign-in: '+e.message,'warning');
+    }
+  };
+  async function driveFetch(url,options={}){
+    if(!googleAccessToken) throw new Error('Google Drive is not connected.');
+    const headers=new Headers(options.headers||{});
+    headers.set('Authorization','Bearer '+googleAccessToken);
+    const controller=new AbortController();
+    const timer=setTimeout(()=>controller.abort(),15000);
+    try{
+      const res=await fetch(url,{...options,headers,signal:controller.signal,cache:'no-store'});
+      if(res.status===401){
+        googleAccessToken='';
+        cloudStatus('Drive session expired. Tap Connect Google Drive again. Your offline data is safe.','warning');
+        throw new Error('Drive session expired.');
+      }
+      if(!res.ok){
+        const detail=await res.text().catch(()=> '');
+        throw new Error('Drive API error '+res.status+(detail?' · '+detail.slice(0,120):''));
+      }
+      return res;
+    }catch(e){
+      if(e.name==='AbortError') throw new Error('Google Drive request timed out. Check your internet connection and try again.');
+      throw e;
+    }finally{
+      clearTimeout(timer);
+    }
+  }
+  async function discoverCloudFile(){
+    if(!googleAccessToken || !navigator.onLine) return '';
+    const q=encodeURIComponent("name='"+DRIVE_FILE_NAME.replaceAll("'","\\'")+"' and trashed=false");
+    const res=await driveFetch('https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q='+q+'&fields=files(id,name,modifiedTime)&orderBy=modifiedTime%20desc&pageSize=1');
+    const data=await res.json();
+    cloudFileId=data.files?.[0]?.id||'';
+    return cloudFileId;
+  }
+  async function createCloudFile(){
+    const res=await driveFetch('https://www.googleapis.com/drive/v3/files?fields=id',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({name:DRIVE_FILE_NAME,parents:['appDataFolder']})
+    });
+    cloudFileId=(await res.json()).id;
+    return cloudFileId;
+  }
+  async function readCloudState(){
+    if(!cloudFileId) await discoverCloudFile();
+    if(!cloudFileId) return null;
+    const res=await driveFetch('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(cloudFileId)+'?alt=media');
+    const txt=await res.text();
+    if(!txt.trim()) return null;
+    const remote=JSON.parse(txt);
+    return Array.isArray(remote?.courses)?remote:null;
+  }
+  async function uploadCloudState(){
+    if(!cloudFileId) await createCloudFile();
+    const payload=JSON.stringify({...normalizeSyncState(state),cloudSyncedAt:new Date().toISOString()});
+    await driveFetch('https://www.googleapis.com/upload/drive/v3/files/'+encodeURIComponent(cloudFileId)+'?uploadType=media',{
+      method:'PATCH',
+      headers:{'Content-Type':'application/json'},
+      body:payload
+    });
+  }
+  async function syncAllDevices(silent=false){
+    if(!navigator.onLine || !googleAccessToken || syncInFlight) return false;
+    syncInFlight=true;
+    cloudStatus('Syncing courses and attendance with Google Drive…','warning');
+    try{
+      const localBefore=JSON.stringify(normalizeSyncState(state));
+      const remote=await readCloudState();
+      const merged=mergeStates(state,remote);
+      state=merged;
+      saveLocalState();
+      await uploadCloudState();
+      const changed=JSON.stringify(merged)!==localBefore;
+      if(changed && !draft.dirty) renderAll();
+      cloudStatus('All devices synced · '+new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}),'success');
+      if(!silent) toast(changed?'Cloud changes merged into this device.':'All devices are up to date.');
+      return true;
+    }catch(e){
+      cloudStatus('Sync failed: '+e.message,'warning');
+      if(!silent) toast('Multi-device sync failed.');
+      return false;
+    }finally{
+      syncInFlight=false;
+    }
+  }
+  function scheduleCloudSync(delay=1200){
+    clearTimeout(syncTimer);
+    if(!navigator.onLine || !googleAccessToken) return;
+    syncTimer=setTimeout(()=>syncAllDevices(true),delay);
+  }
+  $('syncNowBtn').onclick=async()=>{
+    if(!navigator.onLine) return toast('You are offline. Changes will sync when this device is online again.');
+    if(!googleAccessToken) return toast('Connect Google Drive first.');
+    await syncAllDevices(false);
+  };
+  $('restoreDriveBtn').onclick=async()=>{
+    if(!navigator.onLine) return toast('Internet is required to restore from Drive.');
+    if(!googleAccessToken) return toast('Connect Google Drive first.');
+    try{
+      const remote=await readCloudState();
+      if(!remote || !Array.isArray(remote.courses)) throw new Error('No cloud data found.');
+      if(!confirm('Replace this device\'s local data with the current Google Drive copy? Use this only for recovery; normal use should use Sync all devices.')) return;
+      state=normalizeSyncState(remote); saveLocalState(); renderAll();
+      cloudStatus('This device was restored from Google Drive.','success'); toast('Cloud data restored.');
+    }catch(e){ cloudStatus('Restore failed: '+e.message,'warning'); toast('Restore from Drive failed.'); }
+  };
+  document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible' && navigator.onLine && googleAccessToken) scheduleCloudSync(300); });
+  setInterval(()=>{ if(navigator.onLine && googleAccessToken) syncAllDevices(true); },60000);
+
+  function switchView(name){
+    document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===`view-${name}`));
+    document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.view===name));
+    if(name==='alerts') renderAlerts(); if(name==='statistics') renderStats(); if(name==='portal') renderPortalSelectors();
+  }
+  document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>switchView(b.dataset.view)));
+  $('feedbackShortcutBtn').onclick=()=>switchView('feedback');
+
+  function parseRoster(text){
+    const out=[]; const seen=new Set();
+    for(const raw of text.split(/\r?\n/)){
+      const line=raw.trim(); if(!line) continue;
+      let parts;
+      if(line.includes('\t')) parts=line.split('\t');
+      else if(line.includes(',')) parts=line.split(',');
+      else {
+        const m=line.match(/^([^\s]+)\s{2,}(.+)$/); if(m) parts=[m[1],m[2]]; else continue;
+      }
+      let id=(parts.shift()||'').trim().replace(/^"|"$/g,''); let name=parts.join(' ').trim().replace(/^"|"$/g,'');
+      if(!id || !name) continue;
+      if(/student\s*id/i.test(id) && /name/i.test(name)) continue;
+      if(seen.has(id)) continue; seen.add(id); out.push({id,name});
+    }
+    return out;
+  }
+  function showPreview(list){
+    importStudents=list; const p=$('importPreview');
+    if(!list.length){ p.innerHTML='<div class="empty-state">No valid two-column rows found.</div>'; p.classList.remove('hidden'); return; }
+    p.innerHTML=`<table><thead><tr><th>#</th><th>Student ID</th><th>Name</th></tr></thead><tbody>${list.slice(0,200).map((s,i)=>`<tr><td>${i+1}</td><td>${esc(s.id)}</td><td>${esc(s.name)}</td></tr>`).join('')}</tbody></table><div class="muted small" style="padding:8px 10px">${list.length} students detected.</div>`;
+    p.classList.remove('hidden');
+  }
+  $('parsePasteBtn').onclick=()=>showPreview(parseRoster($('studentPaste').value));
+  $('clearImportBtn').onclick=()=>{ $('studentPaste').value=''; importStudents=[]; $('importPreview').classList.add('hidden'); };
+  $('csvFile').onchange=async(e)=>{ const f=e.target.files[0]; if(!f)return; const t=await f.text(); $('studentPaste').value=t; showPreview(parseRoster(t)); };
+
+  $('createCourseBtn').onclick=()=>{
+    const section=$('sectionName').value.trim(), code=$('courseCode').value.trim(), name=$('courseName').value.trim();
+    const threshold=Math.max(1,Number($('alertThreshold').value)||3);
+    if(!section||!code||!name) return toast('Enter section, course code, and course name.');
+    if(!importStudents.length) importStudents=parseRoster($('studentPaste').value);
+    if(!importStudents.length) return toast('Paste or import the student list first.');
+    { const now=new Date().toISOString(); state.courses.push({id:uid(),section,courseCode:code,courseName:name,alertThreshold:threshold,students:importStudents.map(x=>({...x})),sessions:{},deletedSessions:{},createdAt:now,updatedAt:now}); } persist();
+    $('sectionName').value=''; $('courseCode').value=''; $('courseName').value=''; $('studentPaste').value=''; importStudents=[]; $('importPreview').classList.add('hidden');
+    renderAll(); toast('Course created.');
+  };
+
+  function renderCourses(){
+    $('courseCount').textContent=state.courses.length; const el=$('courseList');
+    if(!state.courses.length){ el.className='course-list empty-state'; el.textContent='No courses yet.'; return; }
+    el.className='course-list'; el.innerHTML=state.courses.map(c=>{
+      const sessions=sortedSessions(c).length; return `<div class="course-card"><div><strong>${esc(c.section)} · ${esc(c.courseCode)}</strong><div>${esc(c.courseName)}</div><div class="course-meta">${c.students.length} students · ${sessions} recorded classes · alert at ${c.alertThreshold} absences</div></div><div class="course-actions"><button class="secondary" data-open="${c.id}">Take attendance</button><button class="danger ghost" data-delete="${c.id}">Delete</button></div></div>`;
+    }).join('');
+    el.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>{ $('attendanceCourseSelect').value=b.dataset.open; loadDraft(); switchView('attendance'); });
+    el.querySelectorAll('[data-delete]').forEach(b=>b.onclick=()=>{ const c=currentCourse(b.dataset.delete); if(confirm(`Delete ${c.section} and all its attendance data from all synced devices?`)){ const now=new Date().toISOString(); state.deletedCourses ||= {}; state.deletedCourses[c.id]=now; state.courses=state.courses.filter(x=>x.id!==c.id); persist(); renderAll(); }});
+  }
+  function courseOptionHtml(){ return state.courses.map(c=>`<option value="${c.id}">${esc(c.section)} · ${esc(c.courseCode)} · ${esc(c.courseName)}</option>`).join(''); }
+  function refreshSelects(){
+    for(const id of ['attendanceCourseSelect','statsCourseSelect','portalCourseSelect']){
+      const el=$(id), old=el.value; el.innerHTML=state.courses.length?courseOptionHtml():'<option value="">No courses</option>'; if(state.courses.some(c=>c.id===old)) el.value=old;
+    }
+  }
+
+  function studentRisk(course, studentId, excludeDate=null){
+    const sessions=sortedSessions(course).filter(([d])=>d!==excludeDate);
+    let total=0, streak=0;
+    for(const [,s] of sessions){ if(!(s.presentIds||[]).includes(studentId)) total++; }
+    for(let i=sessions.length-1;i>=0;i--){ const s=sessions[i][1]; if((s.presentIds||[]).includes(studentId)) break; streak++; }
+    return {total,streak,level:streak>=2?'red':total>=2?'yellow':'normal'};
+  }
+  function calculateWithDraft(course, studentId){
+    const sessions=sortedSessions(course).filter(([d])=>d!==draft.date);
+    if(draft.date){ sessions.push([draft.date,{presentIds:[...draft.present]}]); sessions.sort((a,b)=>a[0].localeCompare(b[0])); }
+    let total=0,streak=0;
+    for(const [,s] of sessions){ if(!(s.presentIds||[]).includes(studentId)) total++; }
+    for(let i=sessions.length-1;i>=0;i--){ if((sessions[i][1].presentIds||[]).includes(studentId)) break; streak++; }
+    return {total,streak,level:streak>=2?'red':total>=2?'yellow':'normal'};
+  }
+
+  function loadDraft(){
+    const cid=$('attendanceCourseSelect').value; const date=$('attendanceDate').value||todayISO(); $('attendanceDate').value=date;
+    const c=currentCourse(cid); if(!c){ draft={courseId:null,date:null,present:new Set(),existing:false,dirty:false}; renderAttendance(); return; }
+    const s=(c.sessions||{})[date]; draft={courseId:cid,date,present:new Set(s?.presentIds||[]),existing:!!s,dirty:false}; renderAttendance();
+  }
+  $('attendanceCourseSelect').onchange=loadDraft; $('attendanceDate').onchange=loadDraft;
+  $('markAllBtn').onclick=()=>{ const c=currentCourse(draft.courseId); if(!c)return; draft.present=new Set(c.students.map(s=>s.id)); draft.dirty=true; renderAttendance(); };
+  $('clearAllBtn').onclick=()=>{ if(!draft.courseId)return; draft.present=new Set(); draft.dirty=true; renderAttendance(); };
+  $('deleteSessionBtn').onclick=()=>{ const c=currentCourse(draft.courseId); if(!c||!c.sessions?.[draft.date]) return toast('No saved attendance for this date.'); if(confirm(`Delete attendance for ${fmtDate(draft.date)} from all synced devices?`)){ const now=new Date().toISOString(); delete c.sessions[draft.date]; c.deletedSessions ||= {}; c.deletedSessions[draft.date]=now; c.updatedAt=now; persist(); loadDraft(); renderAll(); toast('Attendance date deleted.'); }};
+
+  $('saveAttendanceBtn').onclick=()=>{
+    const c=currentCourse(draft.courseId); if(!c)return; c.sessions ||= {};
+    const priorRisks=new Map(c.students.map(s=>[s.id,studentRisk(c,s.id)]));
+    const now=new Date().toISOString(); c.sessions[draft.date]={presentIds:[...draft.present],updatedAt:now}; c.deletedSessions ||= {}; delete c.deletedSessions[draft.date]; c.updatedAt=now; persist(); draft.existing=true; draft.dirty=false;
+    const newAlerts=[];
+    for(const st of c.students){ const before=priorRisks.get(st.id), after=studentRisk(c,st.id); if(after.streak>=2 && before.streak<2) newAlerts.push(`${st.name}: ${after.streak} consecutive absences`); else if(after.total>=c.alertThreshold && before.total<c.alertThreshold) newAlerts.push(`${st.name}: ${after.total} total absences`); }
+    renderAll(); renderAttendance(); toast(`Saved ${fmtDate(draft.date)}.`); if(newAlerts.length) notifyAlerts(c,newAlerts);
+  };
+
+  function renderAttendance(){
+    const c=currentCourse(draft.courseId); const list=$('attendanceList'), strip=$('saveStrip');
+    if(!c){ list.className='attendance-list empty-state'; list.textContent='Create or choose a course.'; strip.classList.add('hidden'); $('attendanceStatus').innerHTML=''; return; }
+    const n=c.students.length, p=draft.present.size, a=n-p, rate=n?Math.round(p/n*100):0;
+    $('attendanceStatus').innerHTML=metric('Students',n)+metric('Present',p)+metric('Absent',a)+metric('Rate',`${rate}%`);
+    strip.classList.remove('hidden'); strip.classList.toggle('dirty',draft.dirty||!draft.existing); $('saveMessage').textContent=draft.existing?(draft.dirty?'Changes not saved':'Saved attendance'):'New class date – not yet saved';
+    list.className='attendance-list';
+    list.innerHTML=c.students.map(st=>{
+      const risk = draft.existing ? calculateWithDraft(c,st.id) : studentRisk(c,st.id);
+      const checked=draft.present.has(st.id); const flags=[];
+      if(risk.streak>=2) flags.push(`<span class="flag red">${risk.streak} consecutive absences</span>`); else if(risk.total>=2) flags.push(`<span class="flag yellow">${risk.total} total absences</span>`);
+      else if(risk.total===1) flags.push(`<span class="flag">1 absence</span>`);
+      return `<label class="student-row ${risk.level}"><span class="check-wrap"><input class="big-check" type="checkbox" data-sid="${esc(st.id)}" ${checked?'checked':''}></span><span class="student-id">${esc(st.id)}</span><span class="student-name">${esc(st.name)}</span><span class="student-flags">${flags.join('')}</span></label>`;
+    }).join('');
+    list.querySelectorAll('input[data-sid]').forEach(ch=>ch.onchange=()=>{ if(ch.checked) draft.present.add(ch.dataset.sid); else draft.present.delete(ch.dataset.sid); draft.dirty=true; renderAttendance(); });
+  }
+  function metric(k,v){ return `<div class="metric"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div></div>`; }
+
+  function allAlerts(){
+    const out=[]; for(const c of state.courses){ for(const st of c.students){ const r=studentRisk(c,st.id); if(r.level!=='normal') out.push({course:c,student:st,...r}); } } return out.sort((a,b)=>(a.level==='red'?0:1)-(b.level==='red'?0:1)||b.streak-a.streak||b.total-a.total);
+  }
+  function renderAlerts(){
+    const alerts=allAlerts(); $('alertNavCount').textContent=alerts.length; const el=$('alertsList');
+    if(!alerts.length){ el.className='empty-state'; el.textContent='No students currently meet the red/yellow warning rules.'; return; }
+    el.className='alerts-grid'; el.innerHTML=alerts.map(x=>`<div class="alert-card ${x.level}"><div><strong>${esc(x.course.section)} · ${esc(x.course.courseCode)}</strong><div class="muted small">${esc(x.course.courseName)}</div></div><div><strong>${esc(x.student.id)}</strong><br>${esc(x.student.name)}</div><div><span class="flag ${x.level}">${x.level==='red'?`${x.streak} consecutive absences`:`${x.total} total absences`}</span><div class="muted small" style="margin-top:5px">Total absent: ${x.total}</div></div></div>`).join('');
+  }
+  $('notificationBtn').onclick=async()=>{ if(!('Notification' in window)) return toast('Device notifications are not supported here.'); if(location.protocol==='file:') return toast('Use localhost or GitHub Pages for notifications.'); const p=await Notification.requestPermission(); toast(p==='granted'?'Notifications enabled.':'Notification permission not granted.'); };
+  function notifyAlerts(c,msgs){
+    toast(`${msgs.length} new attendance alert${msgs.length>1?'s':''}.`);
+    if('Notification' in window && Notification.permission==='granted' && location.protocol!=='file:') new Notification(`${c.section} attendance alert`,{body:msgs.slice(0,3).join('\n')});
+  }
+
+  function renderStats(){
+    const sel=$('statsCourseSelect'); const c=currentCourse(sel.value); if(!c){ $('statsSummary').innerHTML=''; $('sessionStatsTable').innerHTML='<div class="empty-state">No course selected.</div>'; $('studentStatsTable').innerHTML=''; drawChart([]); return; }
+    const sessions=sortedSessions(c), n=c.students.length; let totalP=0;
+    const rows=sessions.map(([d,s])=>{ const p=(s.presentIds||[]).length,a=n-p,rate=n?p/n*100:0; totalP+=p; return {d,p,a,rate}; });
+    const overall=sessions.length&&n?Math.round(totalP/(sessions.length*n)*100):0;
+    const red=c.students.filter(st=>studentRisk(c,st.id).level==='red').length, yellow=c.students.filter(st=>studentRisk(c,st.id).level==='yellow').length;
+    $('statsSummary').innerHTML=metric('Recorded classes',sessions.length)+metric('Overall rate',`${overall}%`)+metric('Red alerts',red)+metric('Yellow alerts',yellow);
+    $('sessionStatsTable').innerHTML=rows.length?table(['Date','Present','Absent','Rate'],rows.map(r=>[fmtDate(r.d),r.p,r.a,`${Math.round(r.rate)}%`])):'<div class="empty-state">No recorded classes yet.</div>';
+    const sr=c.students.map(st=>{ let p=0; for(const [,s] of sessions) if((s.presentIds||[]).includes(st.id)) p++; const a=sessions.length-p, rate=sessions.length?Math.round(p/sessions.length*100):0, risk=studentRisk(c,st.id); return [st.id,st.name,p,a,`${rate}%`,risk.streak]; });
+    $('studentStatsTable').innerHTML=table(['ID','Name','P','A','Rate','Current streak'],sr);
+    drawChart(rows);
+  }
+  $('statsCourseSelect').onchange=renderStats;
+  function table(headers,rows){ return `<table><thead><tr>${headers.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(v=>`<td>${esc(v)}</td>`).join('')}</tr>`).join('')}</tbody></table>`; }
+  function drawChart(rows){
+    const canvas=$('attendanceChart'), ctx=canvas.getContext('2d'); const W=canvas.width,H=canvas.height; ctx.clearRect(0,0,W,H); ctx.fillStyle='#ffffff';ctx.fillRect(0,0,W,H);
+    const pad={l:58,r:20,t:28,b:70}, cw=W-pad.l-pad.r,ch=H-pad.t-pad.b; ctx.strokeStyle='#cfd7e3';ctx.lineWidth=1;
+    for(let i=0;i<=5;i++){ const y=pad.t+ch*(i/5); ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(W-pad.r,y);ctx.stroke();ctx.fillStyle='#667085';ctx.font='22px system-ui';ctx.textAlign='right';ctx.fillText(`${100-i*20}%`,pad.l-8,y+7); }
+    if(!rows.length){ ctx.fillStyle='#667085';ctx.textAlign='center';ctx.font='26px system-ui';ctx.fillText('No recorded classes yet',W/2,H/2); return; }
+    const gap=14, bw=Math.max(18,(cw-gap*(rows.length+1))/rows.length); rows.forEach((r,i)=>{ const x=pad.l+gap+i*(bw+gap), bh=ch*(r.rate/100), y=pad.t+ch-bh; ctx.fillStyle='#1f5eff';ctx.fillRect(x,y,bw,bh);ctx.fillStyle='#172033';ctx.font='20px system-ui';ctx.textAlign='center';ctx.fillText(`${Math.round(r.rate)}%`,x+bw/2,Math.max(pad.t+18,y-7)); ctx.save();ctx.translate(x+bw/2,H-pad.b+18);ctx.rotate(-Math.PI/5);ctx.fillStyle='#667085';ctx.font='18px system-ui';ctx.textAlign='right';ctx.fillText(r.d.slice(5),0,0);ctx.restore(); });
+  }
+
+  function renderPortalSelectors(){
+    const c=currentCourse($('portalCourseSelect').value), ds=$('portalDateSelect');
+    if(!c){ds.innerHTML='<option>No dates</option>'; renderPortal();return;} const sessions=sortedSessions(c).map(([d])=>d).reverse(); ds.innerHTML=sessions.length?sessions.map(d=>`<option value="${d}">${fmtDate(d)}</option>`).join(''):'<option value="">No recorded dates</option>'; renderPortal();
+  }
+  $('portalCourseSelect').onchange=renderPortalSelectors; $('portalDateSelect').onchange=renderPortal;
+  function renderPortal(){
+    const c=currentCourse($('portalCourseSelect').value), d=$('portalDateSelect').value, el=$('portalTable'); if(!c||!d||!c.sessions?.[d]){ $('portalSummary').innerHTML=''; el.className='table-wrap empty-state';el.textContent='Select a recorded date.';return; }
+    const present=new Set(c.sessions[d].presentIds||[]), p=present.size,a=c.students.length-p,rate=c.students.length?Math.round(p/c.students.length*100):0;
+    $('portalSummary').innerHTML=metric('Date',fmtDate(d))+metric('Present',p)+metric('Absent',a)+metric('Rate',`${rate}%`);
+    el.className='table-wrap'; el.innerHTML=table(['Student ID','Name','Status'],c.students.map(st=>[st.id,st.name,present.has(st.id)?'Present':'Absent']));
+  }
+  async function copyIds(which){ const c=currentCourse($('portalCourseSelect').value),d=$('portalDateSelect').value;if(!c||!d||!c.sessions?.[d])return;const set=new Set(c.sessions[d].presentIds||[]);const ids=c.students.filter(s=>which==='present'?set.has(s.id):!set.has(s.id)).map(s=>s.id).join('\n');try{await navigator.clipboard.writeText(ids);toast(`${which} IDs copied.`)}catch{prompt('Copy the IDs:',ids)} }
+  $('copyPresentBtn').onclick=()=>copyIds('present'); $('copyAbsentBtn').onclick=()=>copyIds('absent'); $('printPortalBtn').onclick=()=>window.print();
+  $('exportCsvBtn').onclick=()=>{ const c=currentCourse($('portalCourseSelect').value),d=$('portalDateSelect').value;if(!c||!d||!c.sessions?.[d])return;const set=new Set(c.sessions[d].presentIds||[]);const csv=['Student ID,Name,Status',...c.students.map(s=>`"${s.id.replaceAll('"','""')}","${s.name.replaceAll('"','""')}",${set.has(s.id)?'Present':'Absent'}`)].join('\n');download(`attendance-${c.section}-${d}.csv`,csv,'text/csv'); };
+
+  $('exportBackupBtn').onclick=()=>download(`attendance-backup-${todayISO()}.json`,JSON.stringify(state,null,2),'application/json');
+  $('restoreBackupFile').onchange=async(e)=>{ const f=e.target.files[0]; if(!f)return; try{const x=JSON.parse(await f.text());if(!Array.isArray(x.courses))throw new Error('Invalid backup'); state=normalizeSyncState(x);persist();renderAll();toast('Backup restored.');}catch(err){toast('Invalid backup file.');} e.target.value=''; };
+  function download(name,text,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
+
+  function renderAll(){
+    renderCourses(); refreshSelects(); renderAlerts();
+    if(!$('attendanceDate').value) $('attendanceDate').value=todayISO();
+    if(!draft.courseId || !state.courses.some(c=>c.id===draft.courseId)){ draft.courseId=$('attendanceCourseSelect').value||null; draft.date=$('attendanceDate').value; draft.present=new Set(); draft.existing=false; draft.dirty=false; if(draft.courseId) loadDraft(); else renderAttendance(); }
+    renderStats(); renderPortalSelectors();
+  }
+
+  window.AttendanceAppBridge = {
+    getState(){ return deepCopy(normalizeSyncState(state)); },
+    mergeRemote(remote,{render=true}={}){
+      state=mergeStates(state,remote);
+      saveLocalState();
+      if(render) renderAll();
+      return deepCopy(state);
+    },
+    notify(message){ toast(message); }
+  };
+
+  connectionState(); updateInstallUI(); updateStorageStatus(); initGoogleDrive(); $('attendanceDate').value=todayISO(); renderAll(); hydrateOfflineDatabase().then(()=>{ state=normalizeSyncState(state); saveLocalState(); renderAll(); });
+  if('serviceWorker' in navigator && (location.protocol==='https:' || location.hostname==='localhost' || location.hostname==='127.0.0.1')){
+    let swReg=null, controllerChanging=false;
+    const showUpdate=()=>{ $('updateNotice').classList.remove('hidden'); };
+    navigator.serviceWorker.addEventListener('controllerchange',()=>{
+      if(controllerChanging) return;
+      controllerChanging=true;
+      if(draft && draft.dirty){ showUpdate(); controllerChanging=false; return; }
+      location.reload();
+    });
+    navigator.serviceWorker.register('./sw.js').then(reg=>{
+      swReg=reg;
+      if(navigator.onLine) reg.update().catch(()=>{});
+      if(reg.waiting) showUpdate();
+      reg.addEventListener('updatefound',()=>{
+        const worker=reg.installing; if(!worker) return;
+        worker.addEventListener('statechange',()=>{
+          if(worker.state==='installed' && navigator.serviceWorker.controller) showUpdate();
+        });
+      });
+      setInterval(()=>{ if(navigator.onLine) reg.update().catch(()=>{}); },60*60*1000);
+    }).catch(()=>{});
+    $('reloadUpdateBtn').onclick=()=>{
+      if(draft && draft.dirty && !confirm('You have unsaved attendance changes. Update anyway?')) return;
+      if(swReg?.waiting) swReg.waiting.postMessage({type:'SKIP_WAITING'});
+      else location.reload();
+    };
+  }
+})();
+</script>
+<script type="module" src="./firebase-sync.mjs"></script>
+</body>
+</html>
