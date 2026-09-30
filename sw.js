@@ -1,5 +1,5 @@
-const CACHE='offline-teacher-attendance-v11-rc';
-const ASSETS=['./','./index.html','./manifest.webmanifest','./icons/icon.svg','./firebase-config.mjs','./firebase-sync.mjs'];
+const CACHE='offline-teacher-attendance-v12-recovery';
+const ASSETS=['./','./index.html','./manifest.webmanifest','./icons/icon.svg'];
 
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting()));
