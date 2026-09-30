@@ -7,9 +7,7 @@ import {
   GoogleAuthProvider,
   browserLocalPersistence,
   setPersistence,
-  signInWithPopup,
-  signInWithRedirect,
-  getRedirectResult,
+  signInWithCredential,
   onAuthStateChanged,
   signOut
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
@@ -26,7 +24,8 @@ import {
   serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
-const APP_VERSION = '0.8.0-rc1';
+const APP_VERSION = '0.8.0-rc2';
+const GOOGLE_WEB_CLIENT_ID = '460419019734-lhvkcq795cg41k6cet2mvcnmmq3djcht.apps.googleusercontent.com';
 const DEVICE_KEY = 'offlineTeacherAttendance.deviceId.v1';
 
 const $ = id => document.getElementById(id);
@@ -78,11 +77,12 @@ function trustedDeviceNotice() {
   }
 }
 
-function shouldUseRedirect() {
-  const ua = navigator.userAgent || '';
-  // Prefer popup on desktop/Android including installed PWAs. Use redirect only on iOS,
-  // where standalone browser windows are more restrictive with popups.
-  return /iPad|iPhone|iPod/i.test(ua);
+async function waitForGoogleIdentity(){
+  for(let i=0;i<120;i++){
+    if(window.google?.accounts?.oauth2) return true;
+    await new Promise(r=>setTimeout(r,50));
+  }
+  return false;
 }
 
 async function waitForBridge() {
@@ -120,8 +120,6 @@ if (!firebaseConfigured) {
   }
 
   trustedDeviceNotice();
-  const provider = new GoogleAuthProvider();
-  provider.setCustomParameters({prompt:'select_account'});
 
   const bridge = await waitForBridge();
   const deviceId = getDeviceId();
@@ -214,15 +212,44 @@ if (!firebaseConfigured) {
   if ($('firebaseSignInBtn')) {
     $('firebaseSignInBtn').onclick = async () => {
       const btn=$('firebaseSignInBtn');
+      btn.disabled=true;
+      btn.textContent='Signing in…';
       try {
-        btn.disabled=true;
-        btn.textContent='Signing in…';
-        setStatus('Opening Google sign-in…', 'warning');
-        if (shouldUseRedirect()) {
-          await signInWithRedirect(auth, provider);
-        } else {
-          await signInWithPopup(auth, provider);
-        }
+        setStatus('Opening Google account chooser…', 'warning');
+        const gisReady=await waitForGoogleIdentity();
+        if(!gisReady) throw new Error('Google Identity Services did not load. Check the internet connection and reload.');
+
+        const accessToken=await new Promise((resolve,reject)=>{
+          let settled=false;
+          const client=google.accounts.oauth2.initTokenClient({
+            client_id: GOOGLE_WEB_CLIENT_ID,
+            scope: 'openid email profile',
+            include_granted_scopes: false,
+            callback: (resp)=>{
+              if(settled) return;
+              settled=true;
+              if(resp?.error) reject(new Error(resp.error_description || resp.error));
+              else if(resp?.access_token) resolve(resp.access_token);
+              else reject(new Error('Google did not return an access token.'));
+            },
+            error_callback: (err)=>{
+              if(settled) return;
+              settled=true;
+              reject(new Error(err?.type || 'Google sign-in popup failed.'));
+            }
+          });
+          client.requestAccessToken({prompt:'select_account'});
+          setTimeout(()=>{
+            if(!settled){
+              settled=true;
+              reject(new Error('Google sign-in timed out. Allow popups for this site and try again.'));
+            }
+          },30000);
+        });
+
+        setStatus('Google account selected · signing into Firebase…','warning');
+        const credential=GoogleAuthProvider.credential(null,accessToken);
+        await signInWithCredential(auth,credential);
       } catch (err) {
         const code=err?.code || 'unknown';
         setStatus('Google sign-in failed ('+code+'): ' + (err?.message || String(err)), 'warning');
@@ -237,12 +264,6 @@ if (!firebaseConfigured) {
     $('firebaseSignOutBtn').onclick = async () => {
       await signOut(auth);
     };
-  }
-
-  try {
-    await getRedirectResult(auth);
-  } catch (err) {
-    setStatus('Google sign-in return failed: ' + (err?.message || String(err)), 'warning');
   }
 
   onAuthStateChanged(auth, user => {
