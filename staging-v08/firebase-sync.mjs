@@ -24,7 +24,7 @@ import {
   serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
-const APP_VERSION = '0.8.0-rc2';
+const APP_VERSION = '0.8.0-rc3';
 const GOOGLE_WEB_CLIENT_ID = '460419019734-lhvkcq795cg41k6cet2mvcnmmq3djcht.apps.googleusercontent.com';
 const DEVICE_KEY = 'offlineTeacherAttendance.stagingV08.deviceId.v1';
 
@@ -40,21 +40,21 @@ function setStatus(message, tone='warning') {
 
 function setAuthUI(user) {
   const badge = $('cloudAuthBadge');
-  const signIn = $('firebaseSignInBtn');
+  const signInMount = $('googleSignInMount');
   const signOutBtn = $('firebaseSignOutBtn');
   if (user) {
     if (badge) {
       badge.textContent = user.email ? 'Synced: ' + user.email : 'Cloud synced';
       badge.className = 'badge';
     }
-    if (signIn) signIn.classList.add('hidden');
+    if (signInMount) signInMount.classList.add('hidden');
     if (signOutBtn) signOutBtn.classList.remove('hidden');
   } else {
     if (badge) {
       badge.textContent = firebaseConfigured ? 'Local only' : 'Cloud setup pending';
       badge.className = 'badge file';
     }
-    if (signIn) signIn.classList.remove('hidden');
+    if (signInMount) signInMount.classList.remove('hidden');
     if (signOutBtn) signOutBtn.classList.add('hidden');
   }
 }
@@ -78,8 +78,8 @@ function trustedDeviceNotice() {
 }
 
 async function waitForGoogleIdentity(){
-  for(let i=0;i<120;i++){
-    if(window.google?.accounts?.oauth2) return true;
+  for(let i=0;i<160;i++){
+    if(window.google?.accounts?.id) return true;
     await new Promise(r=>setTimeout(r,50));
   }
   return false;
@@ -211,56 +211,45 @@ if (!firebaseConfigured) {
     if (currentUser) setStatus('Offline · keep taking attendance. Changes will synchronize automatically.', 'warning');
   });
 
-  if ($('firebaseSignInBtn')) {
-    $('firebaseSignInBtn').onclick = async () => {
-      const btn=$('firebaseSignInBtn');
-      btn.disabled=true;
-      btn.textContent='Signing in…';
-      try {
-        setStatus('Opening Google account chooser…', 'warning');
-        const gisReady=await waitForGoogleIdentity();
-        if(!gisReady) throw new Error('Google Identity Services did not load. Check the internet connection and reload.');
-
-        const accessToken=await new Promise((resolve,reject)=>{
-          let settled=false;
-          const client=google.accounts.oauth2.initTokenClient({
-            client_id: GOOGLE_WEB_CLIENT_ID,
-            scope: 'openid email profile',
-            include_granted_scopes: false,
-            callback: (resp)=>{
-              if(settled) return;
-              settled=true;
-              if(resp?.error) reject(new Error(resp.error_description || resp.error));
-              else if(resp?.access_token) resolve(resp.access_token);
-              else reject(new Error('Google did not return an access token.'));
-            },
-            error_callback: (err)=>{
-              if(settled) return;
-              settled=true;
-              reject(new Error(err?.type || 'Google sign-in popup failed.'));
-            }
-          });
-          client.requestAccessToken({prompt:'select_account'});
-          setTimeout(()=>{
-            if(!settled){
-              settled=true;
-              reject(new Error('Google sign-in timed out. Allow popups for this site and try again.'));
-            }
-          },30000);
-        });
-
-        setStatus('Google account selected · signing into Firebase…','warning');
-        const credential=GoogleAuthProvider.credential(null,accessToken);
-        await signInWithCredential(auth,credential);
-      } catch (err) {
-        const code=err?.code || 'unknown';
-        setStatus('Google sign-in failed ('+code+'): ' + (err?.message || String(err)), 'warning');
-      } finally {
-        btn.disabled=false;
-        btn.textContent='Sign in with Google';
-      }
-    };
+  async function renderOfficialGoogleButton(){
+    const mount=$('googleSignInMount');
+    if(!mount) return;
+    const ready=await waitForGoogleIdentity();
+    if(!ready){
+      setStatus('Google Sign-In library did not load. Check the internet connection and reload this page.','warning');
+      mount.innerHTML='<button class="primary" type="button" disabled>Google Sign-In unavailable</button>';
+      return;
+    }
+    mount.innerHTML='';
+    google.accounts.id.initialize({
+      client_id: GOOGLE_WEB_CLIENT_ID,
+      callback: async(response)=>{
+        try{
+          if(!response?.credential) throw new Error('Google did not return an ID token.');
+          setStatus('Google account selected · signing into Firebase…','warning');
+          const credential=GoogleAuthProvider.credential(response.credential);
+          await signInWithCredential(auth,credential);
+        }catch(err){
+          const code=err?.code || 'unknown';
+          setStatus('Firebase sign-in failed ('+code+'): '+(err?.message || String(err)),'warning');
+        }
+      },
+      auto_select:false,
+      cancel_on_tap_outside:true,
+      itp_support:true
+    });
+    google.accounts.id.renderButton(mount,{
+      type:'standard',
+      theme:'outline',
+      size:'large',
+      text:'signin_with',
+      shape:'pill',
+      logo_alignment:'left',
+      width:230
+    });
   }
+
+  renderOfficialGoogleButton();
 
   if ($('firebaseSignOutBtn')) {
     $('firebaseSignOutBtn').onclick = async () => {
@@ -281,6 +270,7 @@ if (!firebaseConfigured) {
       queuePublish(50);
     } else {
       setStatus('Not signed in. Attendance still works locally on this device.', 'warning');
+      renderOfficialGoogleButton();
     }
   });
 
