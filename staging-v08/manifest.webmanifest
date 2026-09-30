@@ -1,12 +1,12 @@
 {
-  "name": "Offline Teacher Attendance v0.8 Staging",
-  "short_name": "Attendance Staging",
-  "description": "Offline-first attendance app for teachers",
+  "name": "ClassRoll",
+  "short_name": "ClassRoll",
+  "description": "Offline attendance for teachers",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#f5f7fb",
-  "theme_color": "#0f172a",
+  "background_color": "#f7f8fa",
+  "theme_color": "#0b1f3a",
   "icons": [
     {
       "src": "./icons/icon.svg",
