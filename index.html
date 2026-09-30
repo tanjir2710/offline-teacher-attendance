@@ -200,6 +200,7 @@
 (() => {
   'use strict';
   const STORAGE_KEY = 'offlineTeacherAttendance.v3';
+  const PRE_V08_BACKUP_KEY = 'offlineTeacherAttendance.preV08Backup';
   const APP_VERSION = '0.8.0-rc1';
   const DB_NAME = 'OfflineTeacherAttendanceDB';
   const DB_STORE = 'app';
@@ -219,6 +220,19 @@
   let syncInFlight = false;
   let authWatchdog = null;
   let draft = { courseId:null, date:null, present:new Set(), existing:false, dirty:false };
+
+  function preservePreV08Snapshot(){
+    try{
+      const raw=localStorage.getItem(STORAGE_KEY);
+      if(raw && !localStorage.getItem(PRE_V08_BACKUP_KEY)){
+        const parsed=JSON.parse(raw);
+        if(Array.isArray(parsed?.courses) && parsed.courses.length){
+          localStorage.setItem(PRE_V08_BACKUP_KEY,raw);
+        }
+      }
+    }catch(e){}
+  }
+  preservePreV08Snapshot();
 
   function loadState(){
     try{
