@@ -1,13 +1,12 @@
 // Firebase Web configuration for Offline Teacher Attendance.
-// This file is intentionally safe to publish: Firebase web config is not a password.
-// Fill these values from Firebase Console -> Project settings -> Your apps -> Web app.
+// Firebase web configuration is public application configuration, not a secret.
 export const firebaseConfig = {
-  apiKey: "",
-  authDomain: "",
-  projectId: "",
-  storageBucket: "",
-  messagingSenderId: "",
-  appId: ""
+  apiKey: "AIzaSyDFKgOHDcdzlxajvNC_VMsQxJV9NaKrfP4",
+  authDomain: "offline-teacher-attendance.firebaseapp.com",
+  projectId: "offline-teacher-attendance",
+  storageBucket: "offline-teacher-attendance.firebasestorage.app",
+  messagingSenderId: "460419019734",
+  appId: "1:460419019734:web:389374533d353733e2ea77"
 };
 
 export const firebaseConfigured =
