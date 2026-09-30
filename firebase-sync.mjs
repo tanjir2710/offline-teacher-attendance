@@ -96,7 +96,7 @@ async function waitForBridge() {
 if (!firebaseConfigured) {
   setAuthUI(null);
   setStatus('Automatic multi-device sync is prepared but not activated yet. The administrator must add the Firebase web configuration.', 'warning');
-  if ($('firebaseSignInBtn')) $('firebaseSignInBtn').disabled = true;
+  if ($('googleSignInMount')) $('googleSignInMount').innerHTML='<button class="primary" type="button" disabled>Cloud setup pending</button>';
   if ($('feedbackSubmitBtn')) $('feedbackSubmitBtn').disabled = true;
   window.dispatchEvent(new CustomEvent('attendance-cloud-ready', {detail:{configured:false}}));
 } else {
