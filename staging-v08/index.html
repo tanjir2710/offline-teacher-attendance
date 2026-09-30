@@ -59,7 +59,7 @@
     @media(max-width:480px){.status-strip,.stat-cards{grid-template-columns:1fr 1fr}.tab{padding:9px 11px;font-size:.88rem}.toolbar-actions{width:100%}.toolbar-actions button{flex:1 1 44%}}
     @media print{.tabs,.app-header,.no-print,.toast{display:none!important}.shell{max-width:none;padding:0}.view{display:none!important}#view-portal{display:block!important}.card{box-shadow:none;border:0}.table-wrap{border:0}}
   
-    /* v0.8 RC5 professional UI refresh */
+    /* v0.8 RC6 professional UI refresh */
     :root{
       --bg:#f7f8fa;--card:#fff;--ink:#111827;--muted:#667085;--line:#e4e7ec;
       --brand:#2457d6;--brand2:#1d47b4;--ok:#18794e;--okbg:#eef8f3;
@@ -157,6 +157,39 @@
     .details-body p:first-child{margin-top:0}
     @media(max-width:800px){.compact-details>summary{padding:13px 14px}.details-body{padding:11px 14px 14px}}
 
+  
+    /* RC6 iPhone SE / narrow-screen fixes */
+    html,body{width:100%;max-width:100%;overflow-x:hidden}
+    .shell,main,.view,.card,.grid,.grid>*{min-width:0;max-width:100%}
+    .chart-wrap{overflow:hidden;max-width:100%}
+    .table-wrap{width:100%;max-width:100%;min-width:0;overflow-x:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
+    .desktop-stats-table{min-width:0}
+    .mobile-stat-list{display:none}
+    @media(max-width:600px){
+      #view-statistics>.card{padding-left:11px;padding-right:11px}
+      #view-statistics .chart-wrap{padding:10px 8px}
+      #view-statistics .chart-wrap h3{margin:4px 4px 8px;font-size:.92rem}
+      #attendanceChart{height:220px!important}
+      #sessionStatsTable,#studentStatsTable{border:0;overflow:visible}
+      #sessionStatsTable .desktop-stats-table,#studentStatsTable .desktop-stats-table{display:none}
+      .mobile-stat-list{display:grid;gap:7px}
+      .mobile-stat-row{border:1px solid var(--line);border-radius:10px;padding:10px 11px;background:#fff}
+      .mobile-stat-main,.student-stat-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+      .mobile-stat-main>span,.rate-chip{font-weight:800;color:#2457d6;background:#eef4ff;border-radius:999px;padding:4px 8px;font-size:.78rem}
+      .mobile-stat-meta{display:flex;gap:12px;flex-wrap:wrap;margin-top:7px;color:#667085;font-size:.76rem}
+      .mobile-stat-meta b{color:#344054}
+      .student-stat-head strong{display:block;font-size:.88rem;color:#1d2939;line-height:1.25}
+      .student-stat-head small{display:block;margin-top:2px;color:#667085;font-size:.72rem}
+      .student-stat-row.red{border-left:3px solid #d92d20}.student-stat-row.yellow{border-left:3px solid #eaaa08}
+      #view-statistics .grid.two{display:block!important}
+      #view-statistics .grid.two>div{min-width:0;max-width:100%;margin-top:16px}
+    }
+    @media(max-width:390px){
+      #attendanceChart{height:205px!important}
+      .mobile-stat-meta{gap:9px;font-size:.72rem}
+      .mobile-stat-row{padding:9px 10px}
+    }
+
   </style>
 </head>
 <body>
@@ -170,7 +203,7 @@
     <div class="header-actions">
       <div id="connectionBadge" class="badge">Checking…</div>
       <div id="cloudAuthBadge" class="badge file">Local only</div>
-      <div id="versionBadge" class="badge meta-badge">v0.8 RC5</div>
+      <div id="versionBadge" class="badge meta-badge">v0.8 RC6</div>
       <div id="installStatus" class="badge file meta-badge">Browser mode</div>
       <div id="googleSignInMount" class="no-print google-signin-mount"></div>
       <button id="firebaseSignOutBtn" class="secondary no-print hidden">Sign out</button>
@@ -316,7 +349,7 @@
   const LIVE_STORAGE_KEY = 'offlineTeacherAttendance.v3';
   const STORAGE_KEY = 'offlineTeacherAttendance.stagingV08';
   const PRE_V08_BACKUP_KEY = 'offlineTeacherAttendance.stagingV08.preMigrationBackup';
-  const APP_VERSION = '0.8.0-rc5';
+  const APP_VERSION = '0.8.0-rc6';
   const DB_NAME = 'OfflineTeacherAttendanceDB-StagingV08';
   const DB_STORE = 'app';
   const DB_STATE_KEY = 'state';
@@ -876,25 +909,84 @@
   }
 
   function renderStats(){
-    const sel=$('statsCourseSelect'); const c=currentCourse(sel.value); if(!c){ $('statsSummary').innerHTML=''; $('sessionStatsTable').innerHTML='<div class="empty-state">No course selected.</div>'; $('studentStatsTable').innerHTML=''; drawChart([]); return; }
+    const sel=$('statsCourseSelect'); const c=currentCourse(sel.value);
+    if(!c){
+      $('statsSummary').innerHTML='';
+      $('sessionStatsTable').innerHTML='<div class="empty-state">No course selected.</div>';
+      $('studentStatsTable').innerHTML='';
+      drawChart([]);
+      return;
+    }
     const sessions=sortedSessions(c), n=c.students.length; let totalP=0;
     const rows=sessions.map(([d,s])=>{ const p=(s.presentIds||[]).length,a=n-p,rate=n?p/n*100:0; totalP+=p; return {d,p,a,rate}; });
     const overall=sessions.length&&n?Math.round(totalP/(sessions.length*n)*100):0;
-    const red=c.students.filter(st=>studentRisk(c,st.id).level==='red').length, yellow=c.students.filter(st=>studentRisk(c,st.id).level==='yellow').length;
-    $('statsSummary').innerHTML=metric('Recorded classes',sessions.length)+metric('Overall rate',`${overall}%`)+metric('Red alerts',red)+metric('Yellow alerts',yellow);
-    $('sessionStatsTable').innerHTML=rows.length?table(['Date','Present','Absent','Rate'],rows.map(r=>[fmtDate(r.d),r.p,r.a,`${Math.round(r.rate)}%`])):'<div class="empty-state">No recorded classes yet.</div>';
-    const sr=c.students.map(st=>{ let p=0; for(const [,s] of sessions) if((s.presentIds||[]).includes(st.id)) p++; const a=sessions.length-p, rate=sessions.length?Math.round(p/sessions.length*100):0, risk=studentRisk(c,st.id); return [st.id,st.name,p,a,`${rate}%`,risk.streak]; });
-    $('studentStatsTable').innerHTML=table(['ID','Name','P','A','Rate','Current streak'],sr);
+    const red=c.students.filter(st=>studentRisk(c,st.id).level==='red').length;
+    const yellow=c.students.filter(st=>studentRisk(c,st.id).level==='yellow').length;
+    $('statsSummary').innerHTML=metric('Classes',sessions.length)+metric('Attendance',`${overall}%`)+metric('Red alerts',red)+metric('Yellow alerts',yellow);
+
+    if(rows.length){
+      const desktop=table(['Date','Present','Absent','Rate'],rows.map(r=>[fmtDate(r.d),r.p,r.a,`${Math.round(r.rate)}%`]));
+      const mobile=`<div class="mobile-stat-list">${rows.slice().reverse().map(r=>`
+        <div class="mobile-stat-row">
+          <div class="mobile-stat-main"><strong>${esc(fmtDate(r.d))}</strong><span>${Math.round(r.rate)}%</span></div>
+          <div class="mobile-stat-meta"><span><b>${r.p}</b> Present</span><span><b>${r.a}</b> Absent</span></div>
+        </div>`).join('')}</div>`;
+      $('sessionStatsTable').innerHTML=`<div class="desktop-stats-table">${desktop}</div>${mobile}`;
+    }else{
+      $('sessionStatsTable').innerHTML='<div class="empty-state">No recorded classes yet.</div>';
+    }
+
+    const sr=c.students.map(st=>{
+      let p=0;
+      for(const [,session] of sessions) if((session.presentIds||[]).includes(st.id)) p++;
+      const a=sessions.length-p;
+      const rate=sessions.length?Math.round(p/sessions.length*100):0;
+      const risk=studentRisk(c,st.id);
+      return {id:st.id,name:st.name,p,a,rate,streak:risk.streak,level:risk.level};
+    });
+    const desktopStudents=table(['ID','Name','P','A','Rate','Streak'],sr.map(r=>[r.id,r.name,r.p,r.a,`${r.rate}%`,r.streak]));
+    const mobileStudents=`<div class="mobile-stat-list student-mobile-list">${sr.map(r=>`
+      <div class="mobile-stat-row student-stat-row ${r.level}">
+        <div class="student-stat-head"><div><strong>${esc(r.name)}</strong><small>${esc(r.id)}</small></div><span class="rate-chip">${r.rate}%</span></div>
+        <div class="mobile-stat-meta"><span><b>${r.p}</b> Present</span><span><b>${r.a}</b> Absent</span>${r.streak? `<span><b>${r.streak}</b> streak</span>`:''}</div>
+      </div>`).join('')}</div>`;
+    $('studentStatsTable').innerHTML=`<div class="desktop-stats-table">${desktopStudents}</div>${mobileStudents}`;
     drawChart(rows);
   }
   $('statsCourseSelect').onchange=renderStats;
   function table(headers,rows){ return `<table><thead><tr>${headers.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(v=>`<td>${esc(v)}</td>`).join('')}</tr>`).join('')}</tbody></table>`; }
   function drawChart(rows){
-    const canvas=$('attendanceChart'), ctx=canvas.getContext('2d'); const W=canvas.width,H=canvas.height; ctx.clearRect(0,0,W,H); ctx.fillStyle='#ffffff';ctx.fillRect(0,0,W,H);
-    const pad={l:58,r:20,t:28,b:70}, cw=W-pad.l-pad.r,ch=H-pad.t-pad.b; ctx.strokeStyle='#cfd7e3';ctx.lineWidth=1;
-    for(let i=0;i<=5;i++){ const y=pad.t+ch*(i/5); ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(W-pad.r,y);ctx.stroke();ctx.fillStyle='#667085';ctx.font='22px system-ui';ctx.textAlign='right';ctx.fillText(`${100-i*20}%`,pad.l-8,y+7); }
-    if(!rows.length){ ctx.fillStyle='#667085';ctx.textAlign='center';ctx.font='26px system-ui';ctx.fillText('No recorded classes yet',W/2,H/2); return; }
-    const gap=14, bw=Math.max(18,(cw-gap*(rows.length+1))/rows.length); rows.forEach((r,i)=>{ const x=pad.l+gap+i*(bw+gap), bh=ch*(r.rate/100), y=pad.t+ch-bh; ctx.fillStyle='#1f5eff';ctx.fillRect(x,y,bw,bh);ctx.fillStyle='#172033';ctx.font='20px system-ui';ctx.textAlign='center';ctx.fillText(`${Math.round(r.rate)}%`,x+bw/2,Math.max(pad.t+18,y-7)); ctx.save();ctx.translate(x+bw/2,H-pad.b+18);ctx.rotate(-Math.PI/5);ctx.fillStyle='#667085';ctx.font='18px system-ui';ctx.textAlign='right';ctx.fillText(r.d.slice(5),0,0);ctx.restore(); });
+    const canvas=$('attendanceChart'), ctx=canvas.getContext('2d');
+    const W=canvas.width,H=canvas.height;
+    ctx.clearRect(0,0,W,H); ctx.fillStyle='#ffffff';ctx.fillRect(0,0,W,H);
+    const pad={l:58,r:24,t:30,b:62}, cw=W-pad.l-pad.r,ch=H-pad.t-pad.b;
+    ctx.strokeStyle='#e4e7ec';ctx.lineWidth=1;
+    for(let i=0;i<=5;i++){
+      const y=pad.t+ch*(i/5);
+      ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(W-pad.r,y);ctx.stroke();
+      ctx.fillStyle='#667085';ctx.font='20px system-ui';ctx.textAlign='right';
+      ctx.fillText(`${100-i*20}%`,pad.l-9,y+7);
+    }
+    if(!rows.length){
+      ctx.fillStyle='#98a2b3';ctx.textAlign='center';ctx.font='24px system-ui';
+      ctx.fillText('No recorded classes yet',W/2,H/2);
+      return;
+    }
+    const gap=18;
+    const raw=(cw-gap*Math.max(0,rows.length-1))/Math.max(rows.length,1);
+    const bw=Math.max(16,Math.min(112,raw));
+    const groupW=rows.length*bw+Math.max(0,rows.length-1)*gap;
+    const start=pad.l+Math.max(0,(cw-groupW)/2);
+    rows.forEach((r,i)=>{
+      const x=start+i*(bw+gap), bh=ch*(r.rate/100), y=pad.t+ch-bh;
+      ctx.fillStyle='#2457d6';ctx.fillRect(x,y,bw,bh);
+      ctx.fillStyle='#344054';ctx.font='19px system-ui';ctx.textAlign='center';
+      ctx.fillText(`${Math.round(r.rate)}%`,x+bw/2,Math.max(pad.t+18,y-8));
+      ctx.save();ctx.translate(x+bw/2,H-pad.b+23);
+      if(rows.length>4) ctx.rotate(-Math.PI/7);
+      ctx.fillStyle='#667085';ctx.font='17px system-ui';ctx.textAlign=rows.length>4?'right':'center';
+      ctx.fillText(r.d.slice(5),0,0);ctx.restore();
+    });
   }
 
   function renderPortalSelectors(){
