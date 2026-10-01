@@ -1955,6 +1955,111 @@
   $('restoreBackupFile').onchange=async(e)=>{ const f=e.target.files[0]; if(!f)return; try{const x=JSON.parse(await f.text());if(!Array.isArray(x.courses))throw new Error('Invalid backup'); localStorage.setItem('offlineTeacherAttendance.stagingV08.beforeJsonRestore',JSON.stringify(state)); state=normalizeSyncState(x);persist();renderAll();toast('Backup restored into staging.');refreshLiveRecoveryStatus();}catch(err){toast('Invalid backup file.');} e.target.value=''; };
   function download(name,text,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
 
+  function xmlEsc(v){
+    return String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;');
+  }
+  function excelSafeSheetName(name){
+    return String(name||'Sheet').replace(/[\\\/\?\*\[\]:]/g,' ').trim().slice(0,31)||'Sheet';
+  }
+  function excelCell(v,{header=false}={}){
+    const isNumber=typeof v==='number' && Number.isFinite(v);
+    const type=isNumber?'Number':'String';
+    const style=header?' ss:StyleID="Header"':'';
+    return `<Cell${style}><Data ss:Type="${type}">${xmlEsc(isNumber?Number(v.toFixed(4)):v)}</Data></Cell>`;
+  }
+  function excelWorkbookXml(sheets){
+    const body=sheets.map(sheet=>{
+      const rows=(sheet.rows||[]).map((row,ri)=>`<Row>${row.map(v=>excelCell(v,{header:ri===0})).join('')}</Row>`).join('');
+      return `<Worksheet ss:Name="${xmlEsc(excelSafeSheetName(sheet.name))}"><Table>${rows}</Table><WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><FreezePanes/><FrozenNoSplit/><SplitHorizontal>1</SplitHorizontal><TopRowBottomPane>1</TopRowBottomPane></WorksheetOptions></Worksheet>`;
+    }).join('');
+    return `<?xml version="1.0" encoding="UTF-8"?><?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+<Styles><Style ss:ID="Default" ss:Name="Normal"><Alignment ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Size="11"/></Style><Style ss:ID="Header"><Font ss:FontName="Calibri" ss:Size="11" ss:Bold="1"/><Interior ss:Color="#EAF0FF" ss:Pattern="Solid"/></Style></Styles>
+${body}</Workbook>`;
+  }
+  function downloadExcel(filename,sheets){
+    const xml='\ufeff'+excelWorkbookXml(sheets);
+    download(filename.endsWith('.xls')?filename:filename+'.xls',xml,'application/vnd.ms-excel;charset=utf-8');
+  }
+  function safeFilePart(v){ return String(v||'').replace(/[^a-z0-9_-]+/gi,'_').replace(/^_+|_+$/g,'').slice(0,60)||'ClassRoll'; }
+
+  function exportCurrentEvaluationExcel(){
+    const c=currentEvaluationCourse(), ev=currentEvaluation();
+    if(!c||!ev) return toast('Open an evaluation first.');
+    if(evaluationDraftDirty) return toast('Save the evaluation before exporting Excel.');
+
+    const rubric=ev.rubric||[];
+    const headers=['Student ID','Student Name',...rubric.map(r=>`${r.label} /${r.maxMarks}${r.outcome?' ['+r.outcome+']':''}`),`Total /${ev.maxMarks}`,'Note'];
+    const rows=[headers,...c.students.map(st=>{
+      const marks=ev.scores?.[st.id]||{};
+      return [
+        st.id,
+        st.name,
+        ...rubric.map(r=>marks[r.id]==null?'':Number(marks[r.id])),
+        Number(evaluationStudentTotal(ev,st.id).toFixed(2)),
+        ev.notes?.[st.id]||''
+      ];
+    })];
+
+    const rubricRows=[['Criterion','Maximum Marks','CO/PO'],...rubric.map(r=>[r.label,Number(r.maxMarks)||0,r.outcome||''])];
+    downloadExcel(
+      `${safeFilePart(c.section)}_${safeFilePart(ev.title)}_rubric_marks.xls`,
+      [{name:'Marks',rows},{name:'Rubric',rows:rubricRows}]
+    );
+    toast('Evaluation Excel downloaded.');
+  }
+
+  function exportLabSummaryExcel(){
+    const c=currentEvaluationCourse();
+    if(!c||!isLabCourse(c)) return toast('Choose a lab course first.');
+    const cfg=c.labMarksConfig||{reportMax:15,taskMax:10};
+    const finals=finalizedEvaluations(c);
+    const finalLab=finalLabEvaluation(c);
+    const headers=[
+      'Student ID','Student Name','Recorded Lab Classes',
+      'Reports Submitted',`Report Mark /${Number(cfg.reportMax)||0}`,
+      'Tasks/Tests Passed',`Task/Test Mark /${Number(cfg.taskMax)||0}`,
+      ...finals.map(ev=>`${ev.title} /${ev.maxMarks}`),
+      'Evaluation Average /25',
+      'Final Lab /40'
+    ];
+    const rows=[headers,...c.students.map(st=>{
+      const comp=studentLabComponentMarks(c,st.id);
+      const avg=finalAverage25(c,st.id);
+      const finalMark=finalLab?.finalizedAt?evaluationStudentTotal(finalLab,st.id):null;
+      return [
+        st.id,st.name,comp.total,
+        comp.reports,Number(comp.reportMark.toFixed(2)),
+        comp.tasks,Number(comp.taskMark.toFixed(2)),
+        ...finals.map(ev=>Number(evaluationStudentTotal(ev,st.id).toFixed(2))),
+        avg==null?'':Number(avg.toFixed(2)),
+        finalMark==null?'':Number(finalMark.toFixed(2))
+      ];
+    })];
+
+    const detailHeaders=['Date','Student ID','Student Name','Present','Lab Report','Daily Task/Test'];
+    const detailRows=[detailHeaders];
+    for(const [date,session] of sortedSessions(c)){
+      for(const st of c.students){
+        detailRows.push([
+          fmtDate(date),st.id,st.name,
+          (session.presentIds||[]).includes(st.id)?'Yes':'No',
+          (session.labReportIds||[]).includes(st.id)?'Yes':'No',
+          (session.labTaskIds||[]).includes(st.id)?'Yes':'No'
+        ]);
+      }
+    }
+
+    downloadExcel(
+      `${safeFilePart(c.section)}_${safeFilePart(c.courseCode)}_lab_summary.xls`,
+      [{name:'Lab Summary',rows},{name:'Daily Detail',rows:detailRows}]
+    );
+    toast('Lab summary Excel downloaded.');
+  }
+
+  $('exportEvaluationExcelBtn').onclick=exportCurrentEvaluationExcel;
+  $('exportLabSummaryBtn').onclick=exportLabSummaryExcel;
+
   function renderAll(){
     renderCourses(); refreshSelects(); renderAlerts(); renderEvaluationSelectors();
     if(!$('attendanceDate').value) $('attendanceDate').value=todayISO();
