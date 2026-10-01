@@ -10,7 +10,9 @@ const config=fs.readFileSync(base+'firebase-config.mjs','utf8');
 
 for (const id of [
   'attendanceList','saveAttendanceBtn','firebaseSyncStatus','googleSignInMount',
-  'firebaseSignOutBtn','feedbackRating','feedbackCategory','feedbackMessage','feedbackSubmitBtn'
+  'firebaseSignOutBtn','feedbackRating','feedbackCategory','feedbackMessage','feedbackSubmitBtn',
+  'editAttendanceBtn','cancelAttendanceEditBtn','evalCourseSelect','evalSelect','newEvaluationBtn',
+  'rubricBuilderRows','saveEvaluationMarksBtn','evaluationStudents'
 ]) {
   if (!html.includes('id="'+id+'"')) fail('Missing required staging element #'+id);
 }
@@ -23,3 +25,8 @@ if (!config.includes('offline-teacher-attendance.firebaseapp.com')) fail('Fireba
 if (!manifest.start_url) fail('Manifest start_url missing');
 if (!/classroll-staging-v08-|offline-teacher-attendance-staging-v08-/.test(sw)) fail('Staging service-worker cache name missing');
 console.log('Staging smoke checks passed.');
+
+if (!html.includes('saved-attendance-panel')) fail('Saved attendance lock view missing');
+if (!html.includes("draft.editing=false")) fail('Attendance save does not lock the record');
+if (!html.includes('function renderEvaluation()')) fail('Lab evaluation renderer missing');
+if (!html.includes('rubricDraft')) fail('Rubric builder missing');
