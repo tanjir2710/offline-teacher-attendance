@@ -9,7 +9,8 @@
   <meta name="apple-mobile-web-app-title" content="ClassRoll" />
   <title>ClassRoll — Attendance</title>
   <link rel="manifest" href="./manifest.webmanifest" />
-  <link rel="apple-touch-icon" href="./icons/icon.svg" />
+  <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png?v=9" />
+  <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png?v=9" />
   <style>
     :root{
       --bg:#f5f7fb;--card:#ffffff;--ink:#172033;--muted:#667085;--line:#d8dee9;
@@ -59,7 +60,7 @@
     @media(max-width:480px){.status-strip,.stat-cards{grid-template-columns:1fr 1fr}.tab{padding:9px 11px;font-size:.88rem}.toolbar-actions{width:100%}.toolbar-actions button{flex:1 1 44%}}
     @media print{.tabs,.app-header,.no-print,.toast{display:none!important}.shell{max-width:none;padding:0}.view{display:none!important}#view-portal{display:block!important}.card{box-shadow:none;border:0}.table-wrap{border:0}}
   
-    /* v0.8 RC8 professional UI refresh */
+    /* v0.8 RC9 professional UI refresh */
     :root{
       --bg:#f7f8fa;--card:#fff;--ink:#111827;--muted:#667085;--line:#e4e7ec;
       --brand:#2457d6;--brand2:#1d47b4;--ok:#18794e;--okbg:#eef8f3;
@@ -227,7 +228,7 @@
     <div class="header-actions">
       <div id="connectionBadge" class="badge">Checking…</div>
       <div id="cloudAuthBadge" class="badge file">Local only</div>
-      <div id="versionBadge" class="badge meta-badge">v0.8 RC8</div>
+      <div id="versionBadge" class="badge meta-badge">v0.8 RC9</div>
       <div id="installStatus" class="badge file meta-badge">Browser mode</div>
       <div id="googleSignInMount" class="no-print google-signin-mount"></div>
       <button id="firebaseSignOutBtn" class="secondary no-print hidden">Sign out</button>
@@ -386,7 +387,7 @@
   const PRE_V08_BACKUP_KEY = 'offlineTeacherAttendance.stagingV08.preMigrationBackup';
   const UPDATE_BACKUP_KEY = 'offlineTeacherAttendance.stagingV08.updateBackup';
   const UPDATE_BACKUP_META_KEY = 'offlineTeacherAttendance.stagingV08.updateBackupMeta';
-  const APP_VERSION = '0.8.0-rc8';
+  const APP_VERSION = '0.8.0-rc9';
   const DB_NAME = 'OfflineTeacherAttendanceDB-StagingV08';
   const DB_STORE = 'app';
   const DB_STATE_KEY = 'state';
