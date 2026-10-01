@@ -35,3 +35,6 @@ if (!html.includes('labReportIds') || !html.includes('labTaskIds')) fail('Lab da
 if (!html.includes('function finalAverage25')) fail('Final /25 evaluation average missing');
 if (!html.includes('data-note-student')) fail('Evaluation note field missing');
 if (!html.includes("state.courses.filter(isLabCourse)")) fail('Evaluation is not restricted to lab courses');
+
+if (!html.includes('dedicated line below each student')) fail('Student warning sub-row layout missing');
+if (html.includes('<span>Alerts</span></div>')) fail('Old lab Alerts header still present');
