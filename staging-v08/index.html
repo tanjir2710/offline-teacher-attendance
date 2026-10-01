@@ -841,6 +841,9 @@
       c.deletedSessions ||= {};
       c.evaluations ||= [];
       c.deletedEvaluations ||= {};
+      c.labMarksConfig ||= {reportMax:15,taskMax:10};
+      c.labMarksConfig.reportMax=Math.max(0,Number(c.labMarksConfig.reportMax)||0);
+      c.labMarksConfig.taskMax=Math.max(0,Number(c.labMarksConfig.taskMax)||0);
       for(const ev of c.evaluations){
         ev.type ||= 'continuous';
         ev.rubric ||= [];
@@ -1163,7 +1166,7 @@
     if(!section||!code||!name) return toast('Enter section, course code, and course name.');
     if(!importStudents.length) importStudents=parseRoster($('studentPaste').value);
     if(!importStudents.length) return toast('Paste or import the student list first.');
-    { const now=new Date().toISOString(); state.courses.push({id:uid(),section,courseCode:code,courseName:name,courseType,alertThreshold:threshold,students:importStudents.map(x=>({...x})),sessions:{},deletedSessions:{},evaluations:[],deletedEvaluations:{},createdAt:now,updatedAt:now}); } persist();
+    { const now=new Date().toISOString(); state.courses.push({id:uid(),section,courseCode:code,courseName:name,courseType,alertThreshold:threshold,students:importStudents.map(x=>({...x})),sessions:{},deletedSessions:{},evaluations:[],deletedEvaluations:{},labMarksConfig:{reportMax:15,taskMax:10},createdAt:now,updatedAt:now}); } persist();
     $('sectionName').value=''; $('courseCode').value=''; $('courseName').value=''; $('courseType').value='theory'; $('studentPaste').value=''; importStudents=[]; $('importPreview').classList.add('hidden');
     renderAll(); toast('Course created.');
   };
