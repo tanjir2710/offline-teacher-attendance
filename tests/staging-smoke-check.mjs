@@ -41,7 +41,7 @@ if (html.includes('<span>Alerts</span></div>')) fail('Old lab Alerts header stil
 
 if (!html.includes("type==='final_lab'")) fail('Final Lab Test evaluation type missing');
 if (!html.includes('Final lab /40')) fail('Final Lab Test 40-mark summary missing');
-if (!html.includes('Evaluation avg /25')) fail('Continuous lab evaluation average /25 missing');
+if (!html.includes('Evaluation average /25')) fail('Continuous lab evaluation average /25 missing');
 
 if (!html.includes('function exportCurrentEvaluationExcel')) fail('Evaluation Excel export missing');
 if (!html.includes('function exportLabSummaryExcel')) fail('Lab summary Excel export missing');
