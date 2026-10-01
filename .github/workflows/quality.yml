@@ -23,6 +23,12 @@ jobs:
       - name: Run v0.8 branch smoke checks
         if: github.ref_name == 'v0.8-firebase-sync'
         run: node tests/smoke-check.mjs
+      - name: Check production Firebase module syntax
+        if: github.ref_name == 'main'
+        run: node --check firebase-sync.mjs
+      - name: Run production smoke checks
+        if: github.ref_name == 'main'
+        run: node tests/production-smoke-check.mjs
       - name: Check staging Firebase module syntax
         if: github.ref_name == 'main'
         run: node --check staging-v08/firebase-sync.mjs

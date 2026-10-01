@@ -7,14 +7,13 @@ import {
   GoogleAuthProvider,
   browserLocalPersistence,
   setPersistence,
-  signInWithPopup,
-  signInWithRedirect,
-  getRedirectResult,
+  signInWithCredential,
   onAuthStateChanged,
   signOut
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
 import {
   initializeFirestore,
+  getFirestore,
   persistentLocalCache,
   persistentMultipleTabManager,
   collection,
@@ -25,8 +24,9 @@ import {
   serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
-const APP_VERSION = '0.8.0-rc1';
-const DEVICE_KEY = 'offlineTeacherAttendance.deviceId.v1';
+const APP_VERSION = '0.8.0';
+const GOOGLE_WEB_CLIENT_ID = '460419019734-lhvkcq795cg41k6cet2mvcnmmq3djcht.apps.googleusercontent.com';
+const DEVICE_KEY = 'offlineTeacherAttendance.production.deviceId.v1';
 
 const $ = id => document.getElementById(id);
 const statusEl = () => $('firebaseSyncStatus');
@@ -40,21 +40,21 @@ function setStatus(message, tone='warning') {
 
 function setAuthUI(user) {
   const badge = $('cloudAuthBadge');
-  const signIn = $('firebaseSignInBtn');
+  const signInMount = $('googleSignInMount');
   const signOutBtn = $('firebaseSignOutBtn');
   if (user) {
     if (badge) {
       badge.textContent = user.email ? 'Synced: ' + user.email : 'Cloud synced';
       badge.className = 'badge';
     }
-    if (signIn) signIn.classList.add('hidden');
+    if (signInMount) signInMount.classList.add('hidden');
     if (signOutBtn) signOutBtn.classList.remove('hidden');
   } else {
     if (badge) {
       badge.textContent = firebaseConfigured ? 'Local only' : 'Cloud setup pending';
       badge.className = 'badge file';
     }
-    if (signIn) signIn.classList.remove('hidden');
+    if (signInMount) signInMount.classList.remove('hidden');
     if (signOutBtn) signOutBtn.classList.add('hidden');
   }
 }
@@ -77,11 +77,12 @@ function trustedDeviceNotice() {
   }
 }
 
-function shouldUseRedirect() {
-  const ua = navigator.userAgent || '';
-  const iOS = /iPad|iPhone|iPod/i.test(ua);
-  const standalone = window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true;
-  return iOS || standalone;
+async function waitForGoogleIdentity(){
+  for(let i=0;i<160;i++){
+    if(window.google?.accounts?.id) return true;
+    await new Promise(r=>setTimeout(r,50));
+  }
+  return false;
 }
 
 async function waitForBridge() {
@@ -95,21 +96,30 @@ async function waitForBridge() {
 if (!firebaseConfigured) {
   setAuthUI(null);
   setStatus('Automatic multi-device sync is prepared but not activated yet. The administrator must add the Firebase web configuration.', 'warning');
-  if ($('firebaseSignInBtn')) $('firebaseSignInBtn').disabled = true;
+  if ($('googleSignInMount')) $('googleSignInMount').innerHTML='<button class="primary" type="button" disabled>Cloud setup pending</button>';
   if ($('feedbackSubmitBtn')) $('feedbackSubmitBtn').disabled = true;
   window.dispatchEvent(new CustomEvent('attendance-cloud-ready', {detail:{configured:false}}));
 } else {
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
-  await setPersistence(auth, browserLocalPersistence);
 
-  const db = initializeFirestore(app, {
-    localCache: persistentLocalCache({tabManager: persistentMultipleTabManager()})
-  });
+  try {
+    await setPersistence(auth, browserLocalPersistence);
+  } catch (err) {
+    console.warn('Firebase auth persistence fallback:', err);
+  }
+
+  let db;
+  try {
+    db = initializeFirestore(app, {
+      localCache: persistentLocalCache({tabManager: persistentMultipleTabManager()})
+    });
+  } catch (err) {
+    console.warn('Persistent Firestore cache unavailable; using standard Firestore:', err);
+    db = getFirestore(app);
+  }
 
   trustedDeviceNotice();
-  const provider = new GoogleAuthProvider();
-  provider.setCustomParameters({prompt:'select_account'});
 
   const bridge = await waitForBridge();
   const deviceId = getDeviceId();
@@ -139,6 +149,7 @@ if (!firebaseConfigured) {
         doc(db, 'users', currentUser.uid, 'devices', deviceId),
         {
           deviceId,
+          environment: 'production',
           state,
           appVersion: APP_VERSION,
           updatedAt: serverTimestamp()
@@ -169,6 +180,7 @@ if (!firebaseConfigured) {
         let merged = bridge.getState();
         for (const d of snap.docs) {
           const data = d.data();
+          if (data?.environment !== 'production') continue;
           if (data?.state?.courses) merged = bridge.mergeRemote(data.state, {render:false});
         }
         const finalState = bridge.mergeRemote(merged, {render:true});
@@ -199,31 +211,50 @@ if (!firebaseConfigured) {
     if (currentUser) setStatus('Offline · keep taking attendance. Changes will synchronize automatically.', 'warning');
   });
 
-  if ($('firebaseSignInBtn')) {
-    $('firebaseSignInBtn').onclick = async () => {
-      try {
-        setStatus('Opening Google sign-in…', 'warning');
-        if (shouldUseRedirect()) {
-          await signInWithRedirect(auth, provider);
-        } else {
-          await signInWithPopup(auth, provider);
+  async function renderOfficialGoogleButton(){
+    const mount=$('googleSignInMount');
+    if(!mount) return;
+    const ready=await waitForGoogleIdentity();
+    if(!ready){
+      setStatus('Google Sign-In library did not load. Check the internet connection and reload this page.','warning');
+      mount.innerHTML='<button class="primary" type="button" disabled>Google Sign-In unavailable</button>';
+      return;
+    }
+    mount.innerHTML='';
+    google.accounts.id.initialize({
+      client_id: GOOGLE_WEB_CLIENT_ID,
+      callback: async(response)=>{
+        try{
+          if(!response?.credential) throw new Error('Google did not return an ID token.');
+          setStatus('Google account selected · signing into Firebase…','warning');
+          const credential=GoogleAuthProvider.credential(response.credential);
+          await signInWithCredential(auth,credential);
+        }catch(err){
+          const code=err?.code || 'unknown';
+          setStatus('Firebase sign-in failed ('+code+'): '+(err?.message || String(err)),'warning');
         }
-      } catch (err) {
-        setStatus('Google sign-in failed: ' + (err?.message || String(err)), 'warning');
-      }
-    };
+      },
+      auto_select:false,
+      cancel_on_tap_outside:true,
+      itp_support:true
+    });
+    google.accounts.id.renderButton(mount,{
+      type:'standard',
+      theme:'outline',
+      size:'large',
+      text:'signin_with',
+      shape:'pill',
+      logo_alignment:'left',
+      width:230
+    });
   }
+
+  renderOfficialGoogleButton();
 
   if ($('firebaseSignOutBtn')) {
     $('firebaseSignOutBtn').onclick = async () => {
       await signOut(auth);
     };
-  }
-
-  try {
-    await getRedirectResult(auth);
-  } catch (err) {
-    setStatus('Google sign-in return failed: ' + (err?.message || String(err)), 'warning');
   }
 
   onAuthStateChanged(auth, user => {
@@ -239,6 +270,7 @@ if (!firebaseConfigured) {
       queuePublish(50);
     } else {
       setStatus('Not signed in. Attendance still works locally on this device.', 'warning');
+      renderOfficialGoogleButton();
     }
   });
 
@@ -265,6 +297,7 @@ if (!firebaseConfigured) {
           category,
           message,
           appVersion: APP_VERSION,
+          environment: 'production',
           userAgent: navigator.userAgent,
           createdAt: serverTimestamp()
         });
