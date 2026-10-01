@@ -1702,19 +1702,34 @@
     const finals=finalizedEvaluations(course);
     const finalLab=finalLabEvaluation(course);
     const finalLabSaved=!!finalLab?.finalizedAt;
-
-    if(!finals.length && !finalLabSaved){
-      panel.innerHTML='<strong>Lab marks summary</strong><p class="muted small">Save lab evaluations and/or the Final Lab Test to see converted marks here.</p>';
-      return;
-    }
+    const cfg=course?.labMarksConfig||{reportMax:15,taskMax:10};
+    const sessionCount=labSessionCount(course);
 
     panel.innerHTML=`
-      <div class="card-title-row"><div><strong>Lab marks summary</strong><div class="muted small">Lab evaluation average is converted to 25. Final Lab Test remains out of 40.</div></div></div>
-      <div class="final-summary-head"><span>Student</span><span>Evaluation avg /25</span><span>Final lab /40</span></div>
+      <div class="card-title-row">
+        <div>
+          <strong>Lab marks summary</strong>
+          <div class="muted small">Daily Report and Task/Test marks use completed ÷ ${sessionCount||0} recorded lab classes × allocated marks. Evaluation average is converted to 25; Final Lab Test remains out of 40.</div>
+        </div>
+      </div>
+      <div class="final-summary-head" style="grid-template-columns:minmax(190px,1.25fr) repeat(4,120px)">
+        <span>Student</span>
+        <span>Report /${Number(cfg.reportMax)||0}</span>
+        <span>Task/Test /${Number(cfg.taskMax)||0}</span>
+        <span>Evaluation /25</span>
+        <span>Final lab /40</span>
+      </div>
       ${course.students.map(st=>{
+        const comp=studentLabComponentMarks(course,st.id);
         const avg=finalAverage25(course,st.id);
         const finalMark=finalLabSaved?evaluationStudentTotal(finalLab,st.id):null;
-        return `<div class="final-summary-row"><div><strong>${esc(st.name)}</strong><div class="muted small">${esc(st.id)}</div></div><div>${avg===null?'—':avg.toFixed(2)} /25</div><div>${finalMark===null?'—':finalMark.toFixed(2)} /40</div></div>`;
+        return `<div class="final-summary-row" style="grid-template-columns:minmax(190px,1.25fr) repeat(4,120px)">
+          <div><strong>${esc(st.name)}</strong><div class="muted small">${esc(st.id)} · Report ${comp.reports}/${comp.total} · Task ${comp.tasks}/${comp.total}</div></div>
+          <div>${comp.reportMark.toFixed(2)} /${Number(cfg.reportMax)||0}</div>
+          <div>${comp.taskMark.toFixed(2)} /${Number(cfg.taskMax)||0}</div>
+          <div>${avg===null?'—':avg.toFixed(2)} /25</div>
+          <div>${finalMark===null?'—':finalMark.toFixed(2)} /40</div>
+        </div>`;
       }).join('')}
     `;
   }
