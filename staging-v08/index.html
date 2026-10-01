@@ -222,14 +222,14 @@
     .evaluation-toolbar{margin:14px 0}
     .evaluation-creator{margin:14px 0 18px;padding:16px;border:1px solid var(--line);border-radius:12px;background:#fafbfc}
     .rubric-builder{margin:15px 0}
-    .rubric-row{display:grid;grid-template-columns:minmax(160px,1fr) 130px 42px;gap:8px;align-items:end;margin-bottom:8px}
+    .rubric-row{display:grid;grid-template-columns:minmax(160px,1fr) 110px 150px 42px;gap:8px;align-items:end;margin-bottom:8px}
     .rubric-remove{height:42px;padding:0;background:#fff3f2;color:#b42318}
     .rubric-total{font-size:.82rem;color:#667085;margin:6px 0 12px;text-align:right}
     .rubric-total.invalid{color:#b42318;font-weight:700}
     .evaluation-title-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:12px 0}
     .evaluation-title-row h3{margin:0}
     .evaluation-students{display:grid;gap:7px}
-    .eval-student-row{--rubric-count:1;display:grid;grid-template-columns:minmax(190px,1.25fr) repeat(var(--rubric-count),minmax(90px,.65fr)) 92px 104px;gap:8px;align-items:center;border:1px solid var(--line);border-radius:11px;padding:10px;background:#fff}
+    .eval-student-row{--rubric-count:1;display:grid;grid-template-columns:minmax(180px,1.2fr) repeat(var(--rubric-count),minmax(88px,.6fr)) 88px 100px minmax(160px,.9fr);gap:8px;align-items:center;border:1px solid var(--line);border-radius:11px;padding:10px;background:#fff}
     .eval-student-id strong{display:block;font-size:.86rem}.eval-student-id small{display:block;color:#667085;margin-top:2px}
     .eval-score-field label{font-size:.68rem;color:#667085;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .eval-score-field input{padding:8px;text-align:center}
@@ -238,13 +238,48 @@
     @media(max-width:700px){
       .evaluation-heading{display:block}.evaluation-heading>button{margin-top:10px;width:100%}
       .evaluation-toolbar{display:grid}.evaluation-toolbar .toolbar-actions{width:auto}
-      .rubric-row{grid-template-columns:1fr 92px 40px}
+      .rubric-row{grid-template-columns:1fr 82px 1fr 40px}
       .eval-student-row{display:block;padding:12px}
       .eval-student-id{margin-bottom:9px}
       .eval-score-field{display:grid;grid-template-columns:1fr 92px;align-items:center;gap:8px;margin-top:7px}
       .eval-score-field label{font-size:.76rem;margin:0;white-space:normal}
       .eval-total,.eval-overall{display:inline-block;margin:10px 12px 0 0;text-align:left}
       .evaluation-title-row{align-items:flex-end}.evaluation-title-row>button{white-space:nowrap}
+    }
+
+  
+    .evaluation-list{display:grid;gap:9px;margin:12px 0 16px}
+    .evaluation-card{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:#fff}
+    .evaluation-card.saved{border-left:3px solid #18a36f}
+    .evaluation-card h3{margin:0 0 3px;font-size:.94rem}
+    .evaluation-card .evaluation-actions{display:flex;gap:7px;flex-wrap:wrap}
+    .evaluation-average-panel{margin-top:16px;border:1px solid #cbd8f8;background:#f5f8ff;border-radius:12px;padding:14px}
+    .evaluation-average-grid{display:grid;grid-template-columns:minmax(180px,1.2fr) repeat(3,minmax(80px,.45fr));gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #e4eaf8}
+    .evaluation-average-grid:last-child{border-bottom:0}
+    .evaluation-note input{padding:8px}
+    .eval-readonly{background:#f8fafc!important;color:#475467}
+    .lab-session-head{display:grid;grid-template-columns:54px minmax(130px,.85fr) minmax(180px,1.3fr) repeat(3,92px) auto;gap:10px;align-items:center;padding:0 6px 7px;color:#667085;font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
+    .student-row.lab-row{grid-template-columns:54px minmax(130px,.85fr) minmax(180px,1.3fr) repeat(3,92px) auto}
+    .lab-check{display:flex;align-items:center;justify-content:center;gap:5px}
+    .lab-check span{font-size:.7rem;color:#667085}
+    .saved-lab-summary{display:flex;justify-content:center;gap:14px;flex-wrap:wrap;margin-top:8px}
+    @media(max-width:800px){
+      .tabs{grid-template-columns:repeat(6,1fr)}
+      .tab{font-size:.64rem}
+      .lab-session-head{display:none}
+      .student-row.lab-row{display:grid;grid-template-columns:40px 1fr;grid-template-areas:"c id" "c name" "checks checks" "flags flags"}
+      .student-row.lab-row .lab-mobile-checks{grid-area:checks;display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding-left:40px;margin-top:6px}
+      .student-row.lab-row .student-flags{grid-area:flags;padding-left:40px}
+      .evaluation-card{align-items:flex-start;flex-direction:column}
+      .evaluation-card .evaluation-actions{width:100%}.evaluation-card .evaluation-actions button{flex:1}
+      .evaluation-average-grid{grid-template-columns:1fr 72px 72px}
+      .evaluation-average-grid .eval-count{display:none}
+      .eval-student-row .evaluation-note{margin-top:8px}
+      .rubric-row{grid-template-columns:1fr 78px 1fr 38px}
+    }
+    @media(max-width:390px){
+      .tab{font-size:.6rem}
+      .evaluation-average-grid{font-size:.78rem}
     }
 
   </style>
@@ -662,11 +697,17 @@
     return n?new Date(n).toISOString():new Date(0).toISOString();
   }
   function deepCopy(v){ return JSON.parse(JSON.stringify(v)); }
+  function isLabCourse(course){
+    if(!course) return false;
+    if(course.courseType) return course.courseType==='lab';
+    return /\blab\b/i.test(course.courseName||'');
+  }
   function normalizeSyncState(input){
     const x=(input && typeof input==='object')?deepCopy(input):{version:4,courses:[]};
     if(!Array.isArray(x.courses)) x.courses=[];
     x.deletedCourses ||= {};
     for(const c of x.courses){
+      c.courseType ||= /\blab\b/i.test(c.courseName||'') ? 'lab' : 'theory';
       c.sessions ||= {};
       c.deletedSessions ||= {};
       c.evaluations ||= [];
@@ -931,7 +972,7 @@
   function switchView(name){
     document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===`view-${name}`));
     document.querySelectorAll('.tab[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===name));
-    const secondary=['evaluation','portal','backup','feedback'].includes(name);
+    const secondary=['portal','backup','feedback'].includes(name);
     $('moreMenuBtn')?.classList.toggle('active',secondary);
     $('moreMenu')?.classList.add('hidden');
     $('moreMenuBtn')?.setAttribute('aria-expanded','false');
@@ -984,12 +1025,13 @@
 
   $('createCourseBtn').onclick=()=>{
     const section=$('sectionName').value.trim(), code=$('courseCode').value.trim(), name=$('courseName').value.trim();
+    const courseType=$('courseType').value==='lab'?'lab':'theory';
     const threshold=Math.max(1,Number($('alertThreshold').value)||3);
     if(!section||!code||!name) return toast('Enter section, course code, and course name.');
     if(!importStudents.length) importStudents=parseRoster($('studentPaste').value);
     if(!importStudents.length) return toast('Paste or import the student list first.');
-    { const now=new Date().toISOString(); state.courses.push({id:uid(),section,courseCode:code,courseName:name,alertThreshold:threshold,students:importStudents.map(x=>({...x})),sessions:{},deletedSessions:{},evaluations:[],deletedEvaluations:{},createdAt:now,updatedAt:now}); } persist();
-    $('sectionName').value=''; $('courseCode').value=''; $('courseName').value=''; $('studentPaste').value=''; importStudents=[]; $('importPreview').classList.add('hidden');
+    { const now=new Date().toISOString(); state.courses.push({id:uid(),section,courseCode:code,courseName:name,courseType,alertThreshold:threshold,students:importStudents.map(x=>({...x})),sessions:{},deletedSessions:{},evaluations:[],deletedEvaluations:{},createdAt:now,updatedAt:now}); } persist();
+    $('sectionName').value=''; $('courseCode').value=''; $('courseName').value=''; $('courseType').value='theory'; $('studentPaste').value=''; importStudents=[]; $('importPreview').classList.add('hidden');
     renderAll(); toast('Course created.');
   };
 
@@ -997,7 +1039,9 @@
     $('courseCount').textContent=state.courses.length; const el=$('courseList');
     if(!state.courses.length){ el.className='course-list empty-state'; el.textContent='No courses yet.'; return; }
     el.className='course-list'; el.innerHTML=state.courses.map(c=>{
-      const sessions=sortedSessions(c).length; return `<div class="course-card"><div><strong>${esc(c.section)} · ${esc(c.courseCode)}</strong><div>${esc(c.courseName)}</div><div class="course-meta">${c.students.length} students · ${sessions} recorded classes · alert at ${c.alertThreshold} absences</div></div><div class="course-actions"><button class="secondary" data-open="${c.id}">Take attendance</button><button class="secondary" data-evaluate="${c.id}">Evaluate</button><button class="danger ghost" data-delete="${c.id}">Delete</button></div></div>`;
+      const sessions=sortedSessions(c).length;
+      const lab=isLabCourse(c);
+      return `<div class="course-card"><div><strong>${esc(c.section)} · ${esc(c.courseCode)}</strong><div>${esc(c.courseName)}</div><div class="course-meta">${lab?'Lab':'Theory'} · ${c.students.length} students · ${sessions} recorded classes · alert at ${c.alertThreshold} absences</div></div><div class="course-actions"><button class="secondary" data-open="${c.id}">Take attendance</button>${lab?`<button class="secondary" data-evaluate="${c.id}">Evaluate</button>`:''}<button class="danger ghost" data-delete="${c.id}">Delete</button></div></div>`;
     }).join('');
     el.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>{ $('attendanceCourseSelect').value=b.dataset.open; loadDraft(); switchView('attendance'); });
     el.querySelectorAll('[data-evaluate]').forEach(b=>b.onclick=()=>{ $('evalCourseSelect').value=b.dataset.evaluate; renderEvaluationSelectors(); switchView('evaluation'); });
@@ -1005,9 +1049,16 @@
   }
   function courseOptionHtml(){ return state.courses.map(c=>`<option value="${c.id}">${esc(c.section)} · ${esc(c.courseCode)} · ${esc(c.courseName)}</option>`).join(''); }
   function refreshSelects(){
-    for(const id of ['attendanceCourseSelect','statsCourseSelect','portalCourseSelect','evalCourseSelect']){
-      const el=$(id), old=el.value; el.innerHTML=state.courses.length?courseOptionHtml():'<option value="">No courses</option>'; if(state.courses.some(c=>c.id===old)) el.value=old;
+    for(const id of ['attendanceCourseSelect','statsCourseSelect','portalCourseSelect']){
+      const el=$(id), old=el.value;
+      el.innerHTML=state.courses.length?courseOptionHtml():'<option value="">No courses</option>';
+      if(state.courses.some(c=>c.id===old)) el.value=old;
     }
+    const evalEl=$('evalCourseSelect');
+    const oldEval=evalEl.value;
+    const labs=state.courses.filter(isLabCourse);
+    evalEl.innerHTML=labs.length?labs.map(c=>`<option value="${c.id}">${esc(c.section)} · ${esc(c.courseCode)} · ${esc(c.courseName)}</option>`).join(''):'<option value="">No lab courses</option>';
+    if(labs.some(c=>c.id===oldEval)) evalEl.value=oldEval;
   }
 
   function studentRisk(course, studentId, excludeDate=null){
