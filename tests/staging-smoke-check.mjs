@@ -12,7 +12,7 @@ for (const id of [
   'attendanceList','saveAttendanceBtn','firebaseSyncStatus','googleSignInMount',
   'firebaseSignOutBtn','feedbackRating','feedbackCategory','feedbackMessage','feedbackSubmitBtn',
   'editAttendanceBtn','cancelAttendanceEditBtn','evalCourseSelect','evalSelect','newEvaluationBtn',
-  'rubricBuilderRows','saveEvaluationMarksBtn','evaluationStudents'
+  'rubricBuilderRows','saveEvaluationMarksBtn','evaluationStudents','courseType','evaluationList','editEvaluationBtn','closeEvaluationBtn'
 ]) {
   if (!html.includes('id="'+id+'"')) fail('Missing required staging element #'+id);
 }
@@ -30,3 +30,8 @@ if (!html.includes('saved-attendance-panel')) fail('Saved attendance lock view m
 if (!html.includes("draft.editing=false")) fail('Attendance save does not lock the record');
 if (!html.includes('function renderEvaluation()')) fail('Lab evaluation renderer missing');
 if (!html.includes('rubricDraft')) fail('Rubric builder missing');
+
+if (!html.includes('labReportIds') || !html.includes('labTaskIds')) fail('Lab daily report/task tracking missing');
+if (!html.includes('function finalAverage25')) fail('Final /25 evaluation average missing');
+if (!html.includes('data-note-student')) fail('Evaluation note field missing');
+if (!html.includes("state.courses.filter(isLabCourse)")) fail('Evaluation is not restricted to lab courses');
