@@ -601,7 +601,7 @@
 
     <section id="view-backup" class="view">
       <div class="grid two">
-        <article class="card"><div class="card-title-row"><div><h2>Automatic sync</h2><p class="muted">Same account, same attendance on every device.</p></div><span class="pill">v0.8</span></div><div id="firebaseSyncStatus" class="notice warning">Checking sync…</div><p class="muted small">Works offline. Changes synchronize when the device reconnects.</p></article>
+        <article class="card"><div class="card-title-row"><div><h2>Automatic sync</h2><p class="muted">Same account, same attendance on every device.</p></div><span class="pill">v0.8.1</span></div><div id="firebaseSyncStatus" class="notice warning">Checking sync…</div><p class="muted small">Works offline. Changes synchronize when the device reconnects.</p></article>
         <article class="card"><h2>Recovery</h2><p class="muted">Import previous data or keep a local recovery file.</p><div id="storageStatus" class="notice">Checking offline storage…</div><div id="liveRecoveryStatus" class="notice warning" style="margin-top:10px">Checking for a previous-version recovery snapshot…</div><div id="stagingRecoveryStatus" class="notice warning" style="margin-top:10px">Checking for v0.8 test attendance on this device…</div><div class="button-row" style="justify-content:flex-start;flex-wrap:wrap"><button id="recoverStagingV08Btn" class="primary">Recover v0.8 attendance</button><button id="importLiveDataBtn" class="secondary">Restore pre-v0.8 snapshot</button><button id="persistStorageBtn" class="secondary">Protect offline storage</button><button id="exportBackupBtn" class="secondary">Export backup</button><label class="file-button">Restore JSON backup<input id="restoreBackupFile" type="file" accept="application/json,.json" hidden /></label></div><p class="muted small">Persistent storage reduces the chance that the browser automatically removes local attendance data. It cannot protect against deleting app/site data or losing the device.</p></article>
         <details class="card compact-details"><summary>Install & offline use</summary><div class="details-body"><ol><li>Open once while online.</li><li>Install/Add to Home Screen.</li><li>Take attendance without internet.</li><li>Reconnect later for automatic sync.</li></ol><p class="muted small">Avoid clearing app/site data unless you already have a backup.</p></div></details>
         <details id="cloudSyncCard" class="card compact-details"><summary>Drive recovery <span class="pill">Optional</span></summary><div class="details-body"><p class="muted">Secondary backup only. Automatic device sync uses Firestore.</p><div id="adminGoogleSetup" class="hidden"><label>Admin OAuth Client ID<input id="googleClientId" placeholder="xxxx.apps.googleusercontent.com" /></label><div class="button-row" style="justify-content:flex-start;flex-wrap:wrap;margin-top:10px"><button id="saveGoogleClientBtn" class="secondary">Save admin setup</button></div></div><div class="button-row" style="justify-content:flex-start;flex-wrap:wrap;margin-top:10px"><button id="googleSignInBtn" class="secondary">Connect Drive</button><button id="syncNowBtn" class="secondary">Backup now</button><button id="restoreDriveBtn" class="secondary">Restore current backup</button><button id="restoreStagingDriveBtn" class="secondary">Recover v0.8 Drive backup</button></div><div id="cloudStatus" class="notice warning" style="margin-top:12px">Drive backup is not connected.</div><p id="cloudHelp" class="muted small">Use only for recovery.</p></div></details>
@@ -654,7 +654,7 @@
   const PRE_V08_BACKUP_KEY = 'offlineTeacherAttendance.preV08Backup';
   const UPDATE_BACKUP_KEY = 'offlineTeacherAttendance.updateBackup';
   const UPDATE_BACKUP_META_KEY = 'offlineTeacherAttendance.updateBackupMeta';
-  const APP_VERSION = '0.8.0';
+  const APP_VERSION = '0.8.1';
   const DB_NAME = 'OfflineTeacherAttendanceDB';
   const DB_STORE = 'app';
   const DB_STATE_KEY = 'state';
@@ -1115,6 +1115,26 @@
       state=normalizeSyncState(remote); saveLocalState(); renderAll();
       cloudStatus('This device was restored from Google Drive.','success'); toast('Cloud data restored.');
     }catch(e){ cloudStatus('Restore failed: '+e.message,'warning'); toast('Restore from Drive failed.'); }
+  };
+  $('restoreStagingDriveBtn').onclick=async()=>{
+    if(!navigator.onLine) return toast('Internet is required to recover the v0.8 Drive backup.');
+    if(!googleAccessToken) return toast('Connect Google Drive first.');
+    try{
+      cloudStatus('Looking for the v0.8 test backup in Google Drive…','warning');
+      const remote=await readNamedDriveState(STAGING_V08_DRIVE_FILE_NAME);
+      if(!remote || !Array.isArray(remote.courses)) throw new Error('No v0.8 test backup was found in Drive.');
+      const n=stateSummary(remote);
+      if(!confirm(`Recover the v0.8 Drive backup (${n.courses} courses · ${n.sessions} recorded classes) and merge it into ClassRoll? Current data will be backed up first.`)) return;
+      localStorage.setItem('offlineTeacherAttendance.beforeStagingDriveMerge',JSON.stringify(state));
+      state=mergeStates(state,remote);
+      persist();
+      renderAll();
+      cloudStatus('v0.8 Drive attendance recovered and merged into ClassRoll.','success');
+      toast('v0.8 Drive attendance recovered.');
+    }catch(e){
+      cloudStatus('v0.8 recovery failed: '+e.message,'warning');
+      toast('Could not recover the v0.8 Drive backup.');
+    }
   };
   document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible' && navigator.onLine && googleAccessToken) scheduleCloudSync(300); });
   setInterval(()=>{ if(navigator.onLine && googleAccessToken) syncAllDevices(true); },60000);
