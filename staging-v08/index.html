@@ -1507,12 +1507,22 @@
     }
     panel.classList.remove('hidden');
     course.labMarksConfig ||= {reportMax:15,taskMax:10};
-    $('labReportMax').value=String(Number(course.labMarksConfig.reportMax)||0);
-    $('labTaskMax').value=String(Number(course.labMarksConfig.taskMax)||0);
+    const cfg=course.labMarksConfig;
+    $('labReportMax').value=String(Number(cfg.reportMax)||0);
+    $('labTaskMax').value=String(Number(cfg.taskMax)||0);
     const total=labSessionCount(course);
     $('labComponentStatus').textContent=total
       ? `${total} recorded lab class${total===1?'':'es'} will be used as the denominator for both components.`
       : 'No recorded lab classes yet. Component marks will calculate after attendance is saved.';
+
+    const preview=$('labComponentPreview');
+    if(preview){
+      const rows=course.students.map(st=>{
+        const comp=studentLabComponentMarks(course,st.id);
+        return `<tr><td>${esc(st.id)}</td><td>${esc(st.name)}</td><td>${comp.reports}/${comp.total}</td><td>${comp.reportMark.toFixed(2)} /${Number(cfg.reportMax)||0}</td><td>${comp.tasks}/${comp.total}</td><td>${comp.taskMark.toFixed(2)} /${Number(cfg.taskMax)||0}</td></tr>`;
+      }).join('');
+      preview.innerHTML=`<div class="component-preview-table"><table><thead><tr><th>ID</th><th>Name</th><th>Reports</th><th>Report mark</th><th>Tasks/Tests</th><th>Task/Test mark</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    }
   }
 
   function renderEvaluationList(course){
