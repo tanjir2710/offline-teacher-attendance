@@ -714,8 +714,11 @@
       c.deletedEvaluations ||= {};
       for(const ev of c.evaluations){
         ev.rubric ||= [];
+        for(const r of ev.rubric) r.outcome ||= '';
         ev.scores ||= {};
+        ev.notes ||= {};
         ev.updatedAt ||= ev.createdAt || c.updatedAt || c.createdAt;
+        if(!('finalizedAt' in ev)) ev.finalizedAt=Object.keys(ev.scores||{}).length?ev.updatedAt:null;
       }
       const sessionTimes=Object.values(c.sessions).map(v=>v?.updatedAt);
       const deletedTimes=Object.values(c.deletedSessions);
@@ -1298,84 +1301,112 @@
 
 
   let evaluationDraftDirty=false;
+  let evaluationEditing=false;
   let rubricDraft=[
-    {id:uid(),label:'Performance',maxMarks:10},
-    {id:uid(),label:'Task completion',maxMarks:10},
-    {id:uid(),label:'Viva / Explanation',maxMarks:5}
+    {id:uid(),label:'Performance',maxMarks:10,outcome:''},
+    {id:uid(),label:'Task completion',maxMarks:10,outcome:''},
+    {id:uid(),label:'Viva / Explanation',maxMarks:5,outcome:''}
   ];
 
+  function labCourses(){ return state.courses.filter(isLabCourse); }
   function currentEvaluationCourse(){ return currentCourse($('evalCourseSelect').value); }
   function currentEvaluation(){
     const c=currentEvaluationCourse();
     return c?.evaluations?.find(e=>e.id===$('evalSelect').value)||null;
   }
-  function evaluationTotalMax(course){
-    return (course?.evaluations||[]).reduce((sum,e)=>sum+(Number(e.maxMarks)||0),0);
-  }
   function evaluationStudentTotal(ev,studentId){
     const marks=ev?.scores?.[studentId]||{};
     return (ev?.rubric||[]).reduce((sum,r)=>sum+Math.max(0,Math.min(Number(r.maxMarks)||0,Number(marks[r.id])||0)),0);
   }
-  function allEvaluationTotal(course,studentId){
-    return (course?.evaluations||[]).reduce((sum,e)=>sum+evaluationStudentTotal(e,studentId),0);
+  function finalizedEvaluations(course){ return (course?.evaluations||[]).filter(e=>!!e.finalizedAt); }
+  function finalAverage25(course,studentId){
+    const list=finalizedEvaluations(course);
+    if(!list.length) return null;
+    const normalized=list.map(ev=>{
+      const max=Number(ev.maxMarks)||0;
+      return max>0?(evaluationStudentTotal(ev,studentId)/max)*25:0;
+    });
+    return normalized.reduce((a,b)=>a+b,0)/normalized.length;
   }
+
+  function renderEvaluationList(course){
+    const list=$('evaluationList');
+    if(!course){ list.innerHTML=''; return; }
+    course.evaluations ||= [];
+    if(!course.evaluations.length){
+      list.innerHTML='<div class="empty-state">No evaluations yet. Create Evaluation 1 when you are ready.</div>';
+      return;
+    }
+    list.innerHTML=course.evaluations.map((ev,i)=>{
+      const saved=!!ev.finalizedAt;
+      const entered=course.students.filter(st=>Object.keys(ev.scores?.[st.id]||{}).length>0).length;
+      const when=saved?formatSavedTime(ev.finalizedAt):'Not saved yet';
+      return `<div class="evaluation-card ${saved?'saved':''}"><div><h3>${esc(ev.title||`Evaluation ${i+1}`)}</h3><div class="muted small">${ev.maxMarks} marks · ${entered}/${course.students.length} students · ${saved?'Saved '+when:when}</div></div><div class="evaluation-actions"><button class="secondary" data-eval-view="${ev.id}">${saved?'View marks':'Open'}</button>${saved?`<button class="secondary" data-eval-edit="${ev.id}">Update</button>`:''}</div></div>`;
+    }).join('');
+    list.querySelectorAll('[data-eval-view]').forEach(b=>b.onclick=()=>{
+      $('evalSelect').value=b.dataset.evalView;
+      evaluationEditing=!currentEvaluation()?.finalizedAt;
+      evaluationDraftDirty=false;
+      renderEvaluation();
+    });
+    list.querySelectorAll('[data-eval-edit]').forEach(b=>b.onclick=()=>{
+      $('evalSelect').value=b.dataset.evalEdit;
+      evaluationEditing=true;
+      evaluationDraftDirty=false;
+      renderEvaluation();
+    });
+  }
+
   function renderEvaluationSelectors(){
     const courseSel=$('evalCourseSelect');
-    const course=currentCourse(courseSel.value) || state.courses[0] || null;
+    const labs=labCourses();
+    const requested=currentCourse(courseSel.value);
+    const course=(requested&&isLabCourse(requested))?requested:(labs[0]||null);
     if(course && courseSel.value!==course.id) courseSel.value=course.id;
     const evalSel=$('evalSelect');
     if(!course){
       evalSel.innerHTML='<option value="">No evaluations</option>';
+      renderEvaluationList(null);
       renderEvaluation();
       return;
     }
     course.evaluations ||= [];
     const old=evalSel.value;
-    evalSel.innerHTML=course.evaluations.length
-      ? course.evaluations.map(e=>`<option value="${e.id}">${esc(e.title)} · ${Number(e.maxMarks)||0} marks</option>`).join('')
-      : '<option value="">No evaluations yet</option>';
+    evalSel.innerHTML=course.evaluations.length?course.evaluations.map(e=>`<option value="${e.id}">${esc(e.title)} · ${Number(e.maxMarks)||0} marks</option>`).join(''):'<option value="">No evaluations yet</option>';
     if(course.evaluations.some(e=>e.id===old)) evalSel.value=old;
+    else if(course.evaluations.length) evalSel.value=course.evaluations[0].id;
+    evaluationEditing=false;
+    evaluationDraftDirty=false;
+    renderEvaluationList(course);
     renderEvaluation();
   }
 
   $('evalCourseSelect').onchange=renderEvaluationSelectors;
-  $('evalSelect').onchange=()=>{ evaluationDraftDirty=false; renderEvaluation(); };
+  $('evalSelect').onchange=()=>{ evaluationDraftDirty=false; evaluationEditing=false; renderEvaluation(); };
 
   function renderRubricBuilder(){
     const el=$('rubricBuilderRows');
-    el.innerHTML=rubricDraft.map((r,i)=>`
-      <div class="rubric-row">
-        <label>Criterion<input data-rubric-label="${i}" value="${esc(r.label)}" placeholder="e.g. Task completion" /></label>
-        <label>Marks<input data-rubric-max="${i}" type="number" min="0.5" step="0.5" value="${Number(r.maxMarks)||0}" /></label>
-        <label>CO/PO <input data-rubric-outcome="${i}" value="${esc(r.outcome||'')}" placeholder="e.g. CO2 / PO3" /></label>
-        <button class="rubric-remove" data-rubric-remove="${i}" type="button" aria-label="Remove criterion">×</button>
-      </div>`).join('');
+    el.innerHTML=rubricDraft.map((r,i)=>`<div class="rubric-row"><label>Criterion<input data-rubric-label="${i}" value="${esc(r.label)}" placeholder="e.g. Task completion" /></label><label>Marks<input data-rubric-max="${i}" type="number" min="0.5" step="0.5" value="${Number(r.maxMarks)||0}" /></label><label>CO/PO <input data-rubric-outcome="${i}" value="${esc(r.outcome||'')}" placeholder="e.g. CO2 / PO3" /></label><button class="rubric-remove" data-rubric-remove="${i}" type="button" aria-label="Remove criterion">×</button></div>`).join('');
     el.querySelectorAll('[data-rubric-label]').forEach(x=>x.oninput=()=>{ rubricDraft[Number(x.dataset.rubricLabel)].label=x.value; });
     el.querySelectorAll('[data-rubric-max]').forEach(x=>x.oninput=()=>{ rubricDraft[Number(x.dataset.rubricMax)].maxMarks=Number(x.value)||0; renderRubricTotal(); });
-    el.querySelectorAll('[data-rubric-remove]').forEach(x=>x.onclick=()=>{
-      if(rubricDraft.length<=1) return toast('Keep at least one rubric criterion.');
-      rubricDraft.splice(Number(x.dataset.rubricRemove),1); renderRubricBuilder();
-    });
+    el.querySelectorAll('[data-rubric-outcome]').forEach(x=>x.oninput=()=>{ rubricDraft[Number(x.dataset.rubricOutcome)].outcome=x.value; });
+    el.querySelectorAll('[data-rubric-remove]').forEach(x=>x.onclick=()=>{ if(rubricDraft.length<=1) return toast('Keep at least one rubric criterion.'); rubricDraft.splice(Number(x.dataset.rubricRemove),1); renderRubricBuilder(); });
     renderRubricTotal();
   }
   function renderRubricTotal(){
     const max=Number($('evaluationMax').value)||0;
-    const total=rubricDraft.reduce((s,r)=>s+(Number(r.maxMarks)||0),0);
+    const total=rubricDraft.reduce((sum,r)=>sum+(Number(r.maxMarks)||0),0);
     const el=$('rubricTotal');
     const ok=Math.abs(max-total)<0.001;
     el.textContent=`Rubric total: ${total} / ${max} marks`+(ok?'':' · rubric must equal evaluation maximum');
     el.classList.toggle('invalid',!ok);
   }
   $('evaluationMax').oninput=renderRubricTotal;
-  $('addRubricCriterionBtn').onclick=()=>{ rubricDraft.push({id:uid(),label:'New criterion',maxMarks:5}); renderRubricBuilder(); };
+  $('addRubricCriterionBtn').onclick=()=>{ rubricDraft.push({id:uid(),label:'New criterion',maxMarks:5,outcome:''}); renderRubricBuilder(); };
   $('newEvaluationBtn').onclick=()=>{
     const c=currentEvaluationCourse();
-    if(!c) return toast('Create or choose a course first.');
-    rubricDraft=[
-      {id:uid(),label:'Performance',maxMarks:10},
-      {id:uid(),label:'Task completion',maxMarks:10},
-      {id:uid(),label:'Viva / Explanation',maxMarks:5}
-    ];
+    if(!c||!isLabCourse(c)) return toast('Choose a lab course first.');
+    rubricDraft=[{id:uid(),label:'Performance',maxMarks:10,outcome:''},{id:uid(),label:'Task completion',maxMarks:10,outcome:''},{id:uid(),label:'Viva / Explanation',maxMarks:5,outcome:''}];
     $('evaluationName').value=`Lab Evaluation ${(c.evaluations?.length||0)+1}`;
     $('evaluationMax').value='25';
     $('evaluationCreator').classList.remove('hidden');
@@ -1383,118 +1414,106 @@
     $('evaluationName').focus();
   };
   $('cancelEvaluationBtn').onclick=()=>$('evaluationCreator').classList.add('hidden');
+
   $('createEvaluationBtn').onclick=()=>{
-    const c=currentEvaluationCourse(); if(!c)return;
+    const c=currentEvaluationCourse();
+    if(!c||!isLabCourse(c)) return toast('Choose a lab course first.');
     const title=$('evaluationName').value.trim();
     const maxMarks=Number($('evaluationMax').value)||0;
-    const rubric=rubricDraft.map(r=>({id:r.id||uid(),label:String(r.label||'').trim(),maxMarks:Number(r.maxMarks)||0})).filter(r=>r.label&&r.maxMarks>0);
+    const rubric=rubricDraft.map(r=>({id:r.id||uid(),label:String(r.label||'').trim(),maxMarks:Number(r.maxMarks)||0,outcome:String(r.outcome||'').trim()})).filter(r=>r.label&&r.maxMarks>0);
     const sum=rubric.reduce((a,r)=>a+r.maxMarks,0);
     if(!title||maxMarks<=0) return toast('Enter evaluation name and maximum marks.');
     if(!rubric.length) return toast('Add at least one rubric criterion.');
     if(Math.abs(sum-maxMarks)>0.001) return toast(`Rubric total must equal ${maxMarks} marks.`);
     const now=new Date().toISOString();
-    c.evaluations ||= [];
-    c.deletedEvaluations ||= {};
-    const ev={id:uid(),title,maxMarks,rubric,scores:{},createdAt:now,updatedAt:now};
-    c.evaluations.push(ev);
-    c.updatedAt=now;
-    persist();
+    c.evaluations ||= []; c.deletedEvaluations ||= {};
+    const ev={id:uid(),title,maxMarks,rubric,scores:{},notes:{},finalizedAt:null,createdAt:now,updatedAt:now};
+    c.evaluations.push(ev); c.updatedAt=now; persist();
     $('evaluationCreator').classList.add('hidden');
     renderAll();
     $('evalCourseSelect').value=c.id;
     renderEvaluationSelectors();
     $('evalSelect').value=ev.id;
+    evaluationEditing=true; evaluationDraftDirty=false;
     renderEvaluation();
-    toast('Evaluation created.');
+    toast('Evaluation created. Enter marks and save when finished.');
   };
+
   $('deleteEvaluationBtn').onclick=()=>{
     const c=currentEvaluationCourse(), ev=currentEvaluation();
     if(!c||!ev) return toast('No evaluation selected.');
     if(!confirm(`Delete ${ev.title} and all entered marks from all synced devices?`)) return;
     const now=new Date().toISOString();
-    c.deletedEvaluations ||= {};
-    c.deletedEvaluations[ev.id]=now;
+    c.deletedEvaluations ||= {}; c.deletedEvaluations[ev.id]=now;
     c.evaluations=(c.evaluations||[]).filter(x=>x.id!==ev.id);
-    c.updatedAt=now;
-    persist();
-    renderAll();
-    renderEvaluationSelectors();
+    c.updatedAt=now; persist();
+    evaluationEditing=false; evaluationDraftDirty=false;
+    renderAll(); renderEvaluationSelectors();
     toast('Evaluation deleted.');
   };
+
+  $('closeEvaluationBtn').onclick=()=>{ evaluationEditing=false; evaluationDraftDirty=false; $('evaluationWorkspace').classList.add('hidden'); renderEvaluationList(currentEvaluationCourse()); };
+  $('editEvaluationBtn').onclick=()=>{ if(!currentEvaluation()) return; evaluationEditing=true; evaluationDraftDirty=false; renderEvaluation(); };
+
+  function renderFinalAverage(course){
+    const panel=$('evaluationFinalAverage');
+    const finals=finalizedEvaluations(course);
+    if(!finals.length){ panel.innerHTML='<strong>Final average /25</strong><p class="muted small">Save at least one evaluation to calculate the converted average.</p>'; return; }
+    panel.innerHTML=`<div class="card-title-row"><div><strong>Final average /25</strong><div class="muted small">${finals.length} saved evaluation${finals.length===1?'':'s'} averaged after normalizing each evaluation to 25.</div></div></div>${course.students.map(st=>{ const avg=finalAverage25(course,st.id); const entered=finals.filter(ev=>Object.keys(ev.scores?.[st.id]||{}).length>0).length; return `<div class="evaluation-average-grid"><div><strong>${esc(st.name)}</strong><div class="muted small">${esc(st.id)}</div></div><div class="eval-count">${entered}/${finals.length} entered</div><div>${avg===null?'—':avg.toFixed(2)}</div><div>/25</div></div>`; }).join('')}`;
+  }
 
   function renderEvaluation(){
     const c=currentEvaluationCourse(), ev=currentEvaluation();
     const empty=$('evaluationEmpty'), work=$('evaluationWorkspace');
     $('deleteEvaluationBtn').disabled=!ev;
-    if(!c){
-      empty.classList.remove('hidden'); empty.textContent='Create or choose a course.';
-      work.classList.add('hidden'); return;
+    $('newEvaluationBtn').disabled=!c||!isLabCourse(c);
+    if(!c||!isLabCourse(c)){
+      empty.classList.remove('hidden'); empty.textContent='No lab course is available. Mark a course as Lab when creating it.';
+      work.classList.add('hidden'); renderEvaluationList(null); return;
     }
-    if(!ev){
-      empty.classList.remove('hidden');
-      empty.textContent=`${c.section} has no evaluations yet. Create one to start entering rubric marks.`;
-      work.classList.add('hidden'); return;
-    }
+    renderEvaluationList(c);
+    if(!ev){ empty.classList.remove('hidden'); empty.textContent=`${c.section} has no evaluations yet. Create one to start.`; work.classList.add('hidden'); return; }
     empty.classList.add('hidden'); work.classList.remove('hidden');
-    const overallMax=evaluationTotalMax(c);
+    const finalized=!!ev.finalizedAt;
+    const editable=evaluationEditing || !finalized;
     $('evaluationTitle').textContent=`${ev.title} · ${ev.maxMarks} marks`;
-    $('evaluationRubricText').textContent=(ev.rubric||[]).map(r=>`${r.label} (${r.maxMarks})`).join(' · ');
+    $('evaluationRubricText').textContent=(ev.rubric||[]).map(r=>`${r.label} (${r.maxMarks})${r.outcome?' · '+r.outcome:''}`).join(' · ');
     const completed=c.students.filter(st=>Object.keys(ev.scores?.[st.id]||{}).length>0).length;
-    $('evaluationSummary').innerHTML=metric('Students',c.students.length)+metric('Entered',completed)+metric('This evaluation',`${ev.maxMarks}`)+metric('All evaluations',`${overallMax}`);
+    const classAvg=finalizedEvaluations(c).length?c.students.reduce((sum,st)=>sum+(finalAverage25(c,st.id)||0),0)/Math.max(1,c.students.length):null;
+    $('evaluationSummary').innerHTML=metric('Students',c.students.length)+metric('Entered',completed)+metric('Evaluation',`${ev.maxMarks}`)+metric('Class avg /25',classAvg===null?'—':classAvg.toFixed(2));
+    $('saveEvaluationMarksBtn').classList.toggle('hidden',!editable);
+    $('editEvaluationBtn').classList.toggle('hidden',editable||!finalized);
     const el=$('evaluationStudents');
     el.innerHTML=c.students.map(st=>{
-      const marks=ev.scores?.[st.id]||{};
-      const total=evaluationStudentTotal(ev,st.id);
-      const overall=allEvaluationTotal(c,st.id);
-      return `<div class="eval-student-row" style="--rubric-count:${Math.max(1,(ev.rubric||[]).length)}" data-eval-student="${esc(st.id)}">
-        <div class="eval-student-id"><strong>${esc(st.name)}</strong><small>${esc(st.id)}</small></div>
-        ${(ev.rubric||[]).map(r=>`<div class="eval-score-field"><label>${esc(r.label)} / ${r.maxMarks}</label><input type="number" min="0" max="${r.maxMarks}" step="0.5" data-score-student="${esc(st.id)}" data-score-rubric="${r.id}" value="${marks[r.id]??''}" placeholder="0" /></div>`).join('')}
-        <div class="eval-total" data-current-total="${esc(st.id)}">${total}/${ev.maxMarks}</div>
-        <div class="eval-overall" data-overall-total="${esc(st.id)}">${overall}/${overallMax}</div>
-      </div>`;
+      const marks=ev.scores?.[st.id]||{}; const total=evaluationStudentTotal(ev,st.id); const avg=finalAverage25(c,st.id); const note=ev.notes?.[st.id]||'';
+      return `<div class="eval-student-row" style="--rubric-count:${Math.max(1,(ev.rubric||[]).length)}" data-eval-student="${esc(st.id)}"><div class="eval-student-id"><strong>${esc(st.name)}</strong><small>${esc(st.id)}</small></div>${(ev.rubric||[]).map(r=>`<div class="eval-score-field"><label>${esc(r.label)} / ${r.maxMarks}${r.outcome?' · '+esc(r.outcome):''}</label><input ${editable?'':'readonly'} class="${editable?'':'eval-readonly'}" type="number" min="0" max="${r.maxMarks}" step="0.5" data-score-student="${esc(st.id)}" data-score-rubric="${r.id}" value="${marks[r.id]??''}" placeholder="0" /></div>`).join('')}<div class="eval-total" data-current-total="${esc(st.id)}">${total}/${ev.maxMarks}</div><div class="eval-overall">${avg===null?'—':avg.toFixed(2)}/25</div><div class="evaluation-note"><input ${editable?'':'readonly'} class="${editable?'':'eval-readonly'}" data-note-student="${esc(st.id)}" value="${esc(note)}" placeholder="Short note (optional)" /></div></div>`;
     }).join('');
-    el.querySelectorAll('input[data-score-student]').forEach(inp=>inp.oninput=()=>{
-      const max=Number(inp.max)||0;
-      if(inp.value!=='' && Number(inp.value)>max) inp.value=String(max);
-      if(inp.value!=='' && Number(inp.value)<0) inp.value='0';
-      evaluationDraftDirty=true;
-      $('saveEvaluationMarksBtn').textContent='Save changes';
-      $('evaluationWorkspace').classList.add('evaluation-dirty');
-      const sid=inp.dataset.scoreStudent;
-      const row=[...el.querySelectorAll(`input[data-score-student="${CSS.escape(sid)}"]`)];
-      const current=row.reduce((sum,x)=>sum+(Number(x.value)||0),0);
-      const oldCurrent=evaluationStudentTotal(ev,sid);
-      const oldOverall=allEvaluationTotal(c,sid);
-      const newOverall=oldOverall-oldCurrent+current;
-      const ct=el.querySelector(`[data-current-total="${CSS.escape(sid)}"]`);
-      const ot=el.querySelector(`[data-overall-total="${CSS.escape(sid)}"]`);
-      if(ct) ct.textContent=`${current}/${ev.maxMarks}`;
-      if(ot) ot.textContent=`${newOverall}/${overallMax}`;
-    });
-    if(!evaluationDraftDirty){
-      $('saveEvaluationMarksBtn').textContent='Save marks';
-      work.classList.remove('evaluation-dirty');
+    if(editable){
+      el.querySelectorAll('input[data-score-student]').forEach(inp=>inp.oninput=()=>{
+        const max=Number(inp.max)||0; if(inp.value!==''&&Number(inp.value)>max) inp.value=String(max); if(inp.value!==''&&Number(inp.value)<0) inp.value='0';
+        evaluationDraftDirty=true; $('saveEvaluationMarksBtn').textContent=finalized?'Save changes':'Save evaluation'; work.classList.add('evaluation-dirty');
+        const sid=inp.dataset.scoreStudent; const row=[...el.querySelectorAll(`input[data-score-student="${CSS.escape(sid)}"]`)]; const current=row.reduce((sum,x)=>sum+(Number(x.value)||0),0);
+        const ct=el.querySelector(`[data-current-total="${CSS.escape(sid)}"]`); if(ct) ct.textContent=`${current}/${ev.maxMarks}`;
+      });
+      el.querySelectorAll('input[data-note-student]').forEach(inp=>inp.oninput=()=>{ evaluationDraftDirty=true; $('saveEvaluationMarksBtn').textContent=finalized?'Save changes':'Save evaluation'; work.classList.add('evaluation-dirty'); });
     }
+    if(!evaluationDraftDirty){ $('saveEvaluationMarksBtn').textContent=finalized?'Save changes':'Save evaluation'; work.classList.remove('evaluation-dirty'); }
+    renderFinalAverage(c);
   }
 
   $('saveEvaluationMarksBtn').onclick=()=>{
-    const c=currentEvaluationCourse(), ev=currentEvaluation(); if(!c||!ev)return;
-    const scores=deepCopy(ev.scores||{});
-    $('evaluationStudents').querySelectorAll('input[data-score-student]').forEach(inp=>{
-      const sid=inp.dataset.scoreStudent, rid=inp.dataset.scoreRubric;
-      scores[sid] ||= {};
-      if(inp.value==='') delete scores[sid][rid];
-      else scores[sid][rid]=Math.max(0,Math.min(Number(inp.max)||0,Number(inp.value)||0));
-      if(!Object.keys(scores[sid]).length) delete scores[sid];
-    });
+    const c=currentEvaluationCourse(), ev=currentEvaluation();
+    if(!c||!ev||(!evaluationEditing&&ev.finalizedAt)) return;
+    const scores={};
+    $('evaluationStudents').querySelectorAll('input[data-score-student]').forEach(inp=>{ const sid=inp.dataset.scoreStudent, rid=inp.dataset.scoreRubric; scores[sid] ||= {}; if(inp.value!=='') scores[sid][rid]=Math.max(0,Math.min(Number(inp.max)||0,Number(inp.value)||0)); if(!Object.keys(scores[sid]).length) delete scores[sid]; });
+    const notes={};
+    $('evaluationStudents').querySelectorAll('input[data-note-student]').forEach(inp=>{ const v=inp.value.trim(); if(v) notes[inp.dataset.noteStudent]=v; });
     const now=new Date().toISOString();
-    ev.scores=scores; ev.updatedAt=now; c.updatedAt=now;
-    persist();
-    evaluationDraftDirty=false;
-    renderEvaluation();
-    toast('Evaluation marks saved.');
+    ev.scores=scores; ev.notes=notes; ev.updatedAt=now; ev.finalizedAt=ev.finalizedAt||now; c.updatedAt=now; persist();
+    evaluationDraftDirty=false; evaluationEditing=false;
+    renderEvaluationSelectors(); $('evalSelect').value=ev.id; renderEvaluation();
+    toast('Evaluation saved.');
   };
-
   function allAlerts(){
     const out=[]; for(const c of state.courses){ for(const st of c.students){ const r=studentRisk(c,st.id); if(r.level!=='normal') out.push({course:c,student:st,...r}); } } return out.sort((a,b)=>(a.level==='red'?0:1)-(b.level==='red'?0:1)||b.streak-a.streak||b.total-a.total);
   }
