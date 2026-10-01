@@ -1914,6 +1914,45 @@
     for(const c of courses){ sessions+=Object.keys(c.sessions||{}).length; students+=Array.isArray(c.students)?c.students.length:0; }
     return {courses:courses.length,sessions,students};
   }
+  function refreshStagingV08RecoveryStatus(){
+    const el=$('stagingRecoveryStatus'), btn=$('recoverStagingV08Btn');
+    if(!el||!btn) return;
+    try{
+      const staging=parseValidState(localStorage.getItem(STAGING_V08_STORAGE_KEY));
+      if(!staging){
+        el.textContent='No local v0.8 test attendance was detected on this device. If you backed it up to Drive, use “Recover v0.8 Drive backup” below.';
+        el.className='notice warning';
+        btn.disabled=true;
+        return;
+      }
+      const n=stateSummary(staging);
+      el.textContent=`v0.8 test data found: ${n.courses} courses · ${n.sessions} recorded classes · ${n.students} roster entries.`;
+      el.className='notice success';
+      btn.disabled=false;
+    }catch(e){
+      el.textContent='Could not read local v0.8 test data. Use the Drive recovery option below.';
+      el.className='notice warning';
+      btn.disabled=true;
+    }
+  }
+  $('recoverStagingV08Btn').onclick=()=>{
+    try{
+      const staging=parseValidState(localStorage.getItem(STAGING_V08_STORAGE_KEY));
+      if(!staging) return toast('No local v0.8 test data was found on this device.');
+      const n=stateSummary(staging);
+      if(!confirm(`Merge the v0.8 test data (${n.courses} courses · ${n.sessions} recorded classes) into ClassRoll? Current production data will be backed up first.`)) return;
+      localStorage.setItem('offlineTeacherAttendance.beforeStagingV08Merge',JSON.stringify(state));
+      state=mergeStates(state,staging);
+      persist();
+      renderAll();
+      toast('v0.8 attendance recovered into ClassRoll.');
+      refreshStagingV08RecoveryStatus();
+    }catch(err){
+      toast('Could not recover the local v0.8 attendance.');
+    }
+  };
+  refreshStagingV08RecoveryStatus();
+
   function refreshLiveRecoveryStatus(){
     const el=$('liveRecoveryStatus'), btn=$('importLiveDataBtn');
     if(!el||!btn) return;
