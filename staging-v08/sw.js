@@ -1,8 +1,10 @@
-const CACHE='classroll-staging-v08-8';
-const ASSETS=['./','./index.html','./manifest.webmanifest','./icons/icon.svg','./firebase-config.mjs','./firebase-sync.mjs'];
+const CACHE='classroll-staging-v08-9';
+const ASSETS=['./','./index.html','./manifest.webmanifest','./icons/icon.svg','./icons/apple-touch-icon.png','./icons/icon-192.png','./icons/icon-512.png','./firebase-config.mjs','./firebase-sync.mjs'];
 
 self.addEventListener('install',event=>{
-  event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting()));
+  // Do not skip waiting automatically. The current app will detect this
+  // waiting worker and show the user an "Update available" dialog.
+  event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)));
 });
 
 self.addEventListener('activate',event=>{
