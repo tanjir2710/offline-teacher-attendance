@@ -393,6 +393,14 @@
       .lab-component-controls{grid-template-columns:1fr}
     }
 
+  
+    .component-preview-details{grid-column:1/-1;border-top:1px solid var(--line);padding-top:10px}
+    .component-preview-details summary{cursor:pointer;font-weight:700;color:#344054}
+    .component-preview-table{margin-top:10px;overflow-x:auto}
+    .component-preview-table table{width:100%;border-collapse:collapse;min-width:620px}
+    .component-preview-table th,.component-preview-table td{padding:8px 9px;border-bottom:1px solid #edf0f4;text-align:left;font-size:.82rem}
+    .component-preview-table th{background:#f8fafc;color:#475467}
+
   </style>
 </head>
 <body>
@@ -542,6 +550,10 @@
             <button id="exportLabSummaryBtn" class="secondary no-print">Export lab summary Excel</button>
           </div>
           <div id="labComponentStatus" class="muted small"></div>
+          <details class="component-preview-details">
+            <summary>Preview converted daily marks</summary>
+            <div id="labComponentPreview"></div>
+          </details>
         </div>
 
         <div id="evaluationList" class="evaluation-list"></div>
@@ -1364,7 +1376,7 @@
       cancelBtn.classList.add('hidden');
       editActions.classList.add('hidden');
       list.className='saved-attendance-panel';
-      const labSummary=lab?`<div class="saved-lab-summary"><span><strong>${draft.report.size}</strong> reports submitted</span><span><strong>${draft.task.size}</strong> lab tasks completed</span></div>`:'';
+      const labSummary=lab?`<div class="saved-lab-summary"><span><strong>${draft.report.size}</strong> reports submitted</span><span><strong>${draft.task.size}</strong> tasks/tests completed</span></div>`:'';
       list.innerHTML=`<div class="saved-attendance-icon">✓</div><strong>Attendance is saved</strong><div class="muted small">${p} present · ${a} absent · ${rate}% attendance</div>${labSummary}`;
       return;
     }
@@ -1381,7 +1393,7 @@
       : (draft.existing?'Change the required students, then save.':'Tick present students, then save attendance.');
 
     list.className='attendance-list';
-    const header=lab?`<div class="lab-session-head"><span>Present</span><span>ID</span><span>Name</span><span>Report</span><span>Lab task</span></div>`:'';
+    const header=lab?`<div class="lab-session-head"><span>Present</span><span>ID</span><span>Name</span><span>Report</span><span>Task/Test</span></div>`:'';
     const rows=c.students.map(st=>{
       const risk=draft.existing?calculateWithDraft(c,st.id):studentRisk(c,st.id);
       const checked=draft.present.has(st.id), report=draft.report.has(st.id), task=draft.task.has(st.id), flags=[];
@@ -1399,7 +1411,7 @@
         <span class="student-name">${esc(st.name)}</span>
         <div class="lab-mobile-checks">
           <label class="lab-check"><input type="checkbox" data-kind="report" data-sid="${esc(st.id)}" ${report?'checked':''}><span>Report</span></label>
-          <label class="lab-check"><input type="checkbox" data-kind="task" data-sid="${esc(st.id)}" ${task?'checked':''}><span>Lab task</span></label>
+          <label class="lab-check"><input type="checkbox" data-kind="task" data-sid="${esc(st.id)}" ${task?'checked':''}><span>Task/Test</span></label>
         </div>
         <label class="lab-check desktop-lab-check"><input type="checkbox" data-kind="report-desktop" data-sid="${esc(st.id)}" ${report?'checked':''}></label>
         <label class="lab-check desktop-lab-check"><input type="checkbox" data-kind="task-desktop" data-sid="${esc(st.id)}" ${task?'checked':''}></label>
@@ -1817,7 +1829,7 @@
     const red=c.students.filter(st=>studentRisk(c,st.id).level==='red').length;
     const yellow=c.students.filter(st=>studentRisk(c,st.id).level==='yellow').length;
     $('statsSummary').innerHTML=lab
-      ? metric('Classes',sessions.length)+metric('Attendance',`${overall}%`)+metric('Reports',totalReports)+metric('Lab tasks',totalTasks)
+      ? metric('Classes',sessions.length)+metric('Attendance',`${overall}%`)+metric('Reports',totalReports)+metric('Task/Tests',totalTasks)
       : metric('Classes',sessions.length)+metric('Attendance',`${overall}%`)+metric('Red alerts',red)+metric('Yellow alerts',yellow);
 
     if(rows.length){
