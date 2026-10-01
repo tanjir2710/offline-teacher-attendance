@@ -60,7 +60,7 @@
     @media(max-width:480px){.status-strip,.stat-cards{grid-template-columns:1fr 1fr}.tab{padding:9px 11px;font-size:.88rem}.toolbar-actions{width:100%}.toolbar-actions button{flex:1 1 44%}}
     @media print{.tabs,.app-header,.no-print,.toast{display:none!important}.shell{max-width:none;padding:0}.view{display:none!important}#view-portal{display:block!important}.card{box-shadow:none;border:0}.table-wrap{border:0}}
   
-    /* v0.8 RC12 professional UI refresh */
+    /* v0.8 RC13 professional UI refresh */
     :root{
       --bg:#f7f8fa;--card:#fff;--ink:#111827;--muted:#667085;--line:#e4e7ec;
       --brand:#2457d6;--brand2:#1d47b4;--ok:#18794e;--okbg:#eef8f3;
@@ -360,6 +360,24 @@
       }
     }
 
+  
+    .evaluation-heading-actions{display:flex;gap:8px;flex-wrap:wrap}
+    .evaluation-group-title{margin:15px 0 8px;font-size:.76rem;font-weight:850;color:#667085;text-transform:uppercase;letter-spacing:.07em}
+    .evaluation-card.final-lab{border-left:3px solid #2457d6;background:#f8faff}
+    .evaluation-type-badge{display:inline-flex;margin-left:6px;padding:3px 7px;border-radius:999px;background:#eef4ff;color:#2457d6;font-size:.66rem;font-weight:800;vertical-align:middle}
+    .final-lab-empty{border:1px dashed #b9c7e8;background:#fafcff;border-radius:12px;padding:13px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+    .final-summary-head,.final-summary-row{display:grid;grid-template-columns:minmax(190px,1.2fr) 120px 120px;gap:10px;align-items:center}
+    .final-summary-head{padding:7px 0;color:#667085;font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
+    .final-summary-row{padding:8px 0;border-top:1px solid #e4eaf8}
+    @media(max-width:700px){
+      .evaluation-heading-actions{width:100%;margin-top:10px}
+      .evaluation-heading-actions button{flex:1}
+      .final-lab-empty{align-items:flex-start;flex-direction:column}
+      .final-lab-empty button{width:100%}
+      .final-summary-head{display:none}
+      .final-summary-row{grid-template-columns:1fr 78px 78px;font-size:.78rem}
+    }
+
   </style>
 </head>
 <body>
@@ -377,7 +395,7 @@
     <div class="header-actions">
       <div id="connectionBadge" class="badge">Checking…</div>
       <div id="cloudAuthBadge" class="badge file">Local only</div>
-      <div id="versionBadge" class="badge meta-badge">v0.8 RC12</div>
+      <div id="versionBadge" class="badge meta-badge">v0.8 RC13</div>
       <div id="installStatus" class="badge file meta-badge">Browser mode</div>
       <div id="googleSignInMount" class="no-print google-signin-mount"></div>
       <button id="firebaseSignOutBtn" class="secondary no-print hidden">Sign out</button>
@@ -487,7 +505,10 @@
       <article class="card">
         <div class="card-title-row evaluation-heading">
           <div><h2>Lab Evaluation</h2><p class="muted">Only lab courses appear here. Add as many evaluations as needed; ClassRoll calculates the final average out of 25.</p></div>
-          <button id="newEvaluationBtn" class="primary no-print">New evaluation</button>
+          <div class="evaluation-heading-actions no-print">
+            <button id="newEvaluationBtn" class="primary">New evaluation</button>
+            <button id="newFinalLabTestBtn" class="secondary">Final lab test · 40</button>
+          </div>
         </div>
 
         <div class="toolbar evaluation-toolbar">
@@ -498,7 +519,7 @@
         <select id="evalSelect" class="hidden" aria-hidden="true"></select>
 
         <div id="evaluationCreator" class="evaluation-creator hidden">
-          <div class="card-title-row"><div><h3>Create evaluation</h3><p class="muted small">Example: Lab Evaluation 1 · 25 marks</p></div><button id="cancelEvaluationBtn" class="secondary">Cancel</button></div>
+          <div class="card-title-row"><div><h3 id="evaluationCreatorTitle">Create evaluation</h3><p id="evaluationCreatorHelp" class="muted small">Create a rubric-based lab evaluation.</p></div><button id="cancelEvaluationBtn" class="secondary">Cancel</button></div>
           <div class="form-grid">
             <label>Evaluation name<input id="evaluationName" placeholder="e.g. Lab Evaluation 1" /></label>
             <label>Maximum marks<input id="evaluationMax" type="number" min="1" step="0.5" value="25" /></label>
@@ -591,7 +612,7 @@
   const PRE_V08_BACKUP_KEY = 'offlineTeacherAttendance.stagingV08.preMigrationBackup';
   const UPDATE_BACKUP_KEY = 'offlineTeacherAttendance.stagingV08.updateBackup';
   const UPDATE_BACKUP_META_KEY = 'offlineTeacherAttendance.stagingV08.updateBackupMeta';
-  const APP_VERSION = '0.8.0-rc12';
+  const APP_VERSION = '0.8.0-rc13';
   const DB_NAME = 'OfflineTeacherAttendanceDB-StagingV08';
   const DB_STORE = 'app';
   const DB_STATE_KEY = 'state';
@@ -791,6 +812,7 @@
       c.evaluations ||= [];
       c.deletedEvaluations ||= {};
       for(const ev of c.evaluations){
+        ev.type ||= 'continuous';
         ev.rubric ||= [];
         for(const r of ev.rubric) r.outcome ||= '';
         ev.scores ||= {};
@@ -1379,6 +1401,7 @@
 
   let evaluationDraftDirty=false;
   let evaluationEditing=false;
+  let evaluationCreateType='continuous';
   let rubricDraft=[
     {id:uid(),label:'Performance',maxMarks:10,outcome:''},
     {id:uid(),label:'Task completion',maxMarks:10,outcome:''},
@@ -1395,7 +1418,9 @@
     const marks=ev?.scores?.[studentId]||{};
     return (ev?.rubric||[]).reduce((sum,r)=>sum+Math.max(0,Math.min(Number(r.maxMarks)||0,Number(marks[r.id])||0)),0);
   }
-  function finalizedEvaluations(course){ return (course?.evaluations||[]).filter(e=>!!e.finalizedAt); }
+  function continuousEvaluations(course){ return (course?.evaluations||[]).filter(e=>(e.type||'continuous')!=='final_lab'); }
+  function finalizedEvaluations(course){ return continuousEvaluations(course).filter(e=>!!e.finalizedAt); }
+  function finalLabEvaluation(course){ return (course?.evaluations||[]).find(e=>e.type==='final_lab')||null; }
   function finalAverage25(course,studentId){
     const list=finalizedEvaluations(course);
     if(!list.length) return null;
@@ -1410,16 +1435,32 @@
     const list=$('evaluationList');
     if(!course){ list.innerHTML=''; return; }
     course.evaluations ||= [];
-    if(!course.evaluations.length){
-      list.innerHTML='<div class="empty-state">No evaluations yet. Create Evaluation 1 when you are ready.</div>';
-      return;
+    const continuous=continuousEvaluations(course);
+    const finalEv=finalLabEvaluation(course);
+
+    let html='<div class="evaluation-group-title">Lab evaluations · averaged to 25</div>';
+    if(!continuous.length){
+      html+='<div class="empty-state">No lab evaluations yet. Create Evaluation 1 when you are ready.</div>';
+    }else{
+      html+=continuous.map((ev,i)=>{
+        const saved=!!ev.finalizedAt;
+        const entered=course.students.filter(st=>Object.keys(ev.scores?.[st.id]||{}).length>0).length;
+        const when=saved?formatSavedTime(ev.finalizedAt):'Not saved yet';
+        return `<div class="evaluation-card ${saved?'saved':''}"><div><h3>${esc(ev.title||`Evaluation ${i+1}`)}</h3><div class="muted small">${ev.maxMarks} marks · ${entered}/${course.students.length} students · ${saved?'Saved '+when:when}</div></div><div class="evaluation-actions"><button class="secondary" data-eval-view="${ev.id}">${saved?'View marks':'Open'}</button>${saved?`<button class="secondary" data-eval-edit="${ev.id}">Update</button>`:''}</div></div>`;
+      }).join('');
     }
-    list.innerHTML=course.evaluations.map((ev,i)=>{
-      const saved=!!ev.finalizedAt;
-      const entered=course.students.filter(st=>Object.keys(ev.scores?.[st.id]||{}).length>0).length;
-      const when=saved?formatSavedTime(ev.finalizedAt):'Not saved yet';
-      return `<div class="evaluation-card ${saved?'saved':''}"><div><h3>${esc(ev.title||`Evaluation ${i+1}`)}</h3><div class="muted small">${ev.maxMarks} marks · ${entered}/${course.students.length} students · ${saved?'Saved '+when:when}</div></div><div class="evaluation-actions"><button class="secondary" data-eval-view="${ev.id}">${saved?'View marks':'Open'}</button>${saved?`<button class="secondary" data-eval-edit="${ev.id}">Update</button>`:''}</div></div>`;
-    }).join('');
+
+    html+='<div class="evaluation-group-title">Final lab test · 40 marks</div>';
+    if(finalEv){
+      const saved=!!finalEv.finalizedAt;
+      const entered=course.students.filter(st=>Object.keys(finalEv.scores?.[st.id]||{}).length>0).length;
+      const when=saved?formatSavedTime(finalEv.finalizedAt):'Not saved yet';
+      html+=`<div class="evaluation-card final-lab ${saved?'saved':''}"><div><h3>${esc(finalEv.title||'Final Lab Test')}<span class="evaluation-type-badge">40 marks</span></h3><div class="muted small">${entered}/${course.students.length} students · ${saved?'Saved '+when:when}</div></div><div class="evaluation-actions"><button class="secondary" data-eval-view="${finalEv.id}">${saved?'View marks':'Open'}</button>${saved?`<button class="secondary" data-eval-edit="${finalEv.id}">Update</button>`:''}</div></div>`;
+    }else{
+      html+='<div class="final-lab-empty"><div><strong>Final Lab Test</strong><div class="muted small">Create one rubric-based final assessment out of 40 marks.</div></div><button class="secondary" data-create-final-lab>Create final lab test</button></div>';
+    }
+    list.innerHTML=html;
+
     list.querySelectorAll('[data-eval-view]').forEach(b=>b.onclick=()=>{
       $('evalSelect').value=b.dataset.evalView;
       evaluationEditing=!currentEvaluation()?.finalizedAt;
@@ -1432,6 +1473,7 @@
       evaluationDraftDirty=false;
       renderEvaluation();
     });
+    list.querySelectorAll('[data-create-final-lab]').forEach(b=>b.onclick=()=>openEvaluationCreator('final_lab'));
   }
 
   function renderEvaluationSelectors(){
@@ -1480,23 +1522,57 @@
   }
   $('evaluationMax').oninput=renderRubricTotal;
   $('addRubricCriterionBtn').onclick=()=>{ rubricDraft.push({id:uid(),label:'New criterion',maxMarks:5,outcome:''}); renderRubricBuilder(); };
-  $('newEvaluationBtn').onclick=()=>{
+  function openEvaluationCreator(type='continuous'){
     const c=currentEvaluationCourse();
     if(!c||!isLabCourse(c)) return toast('Choose a lab course first.');
-    rubricDraft=[{id:uid(),label:'Performance',maxMarks:10,outcome:''},{id:uid(),label:'Task completion',maxMarks:10,outcome:''},{id:uid(),label:'Viva / Explanation',maxMarks:5,outcome:''}];
-    $('evaluationName').value=`Lab Evaluation ${(c.evaluations?.length||0)+1}`;
-    $('evaluationMax').value='25';
+    if(type==='final_lab' && finalLabEvaluation(c)){
+      $('evalSelect').value=finalLabEvaluation(c).id;
+      evaluationEditing=false;
+      evaluationDraftDirty=false;
+      renderEvaluation();
+      return toast('Final Lab Test already exists. You can view or update it.');
+    }
+    evaluationCreateType=type;
+    if(type==='final_lab'){
+      rubricDraft=[
+        {id:uid(),label:'Practical performance',maxMarks:20,outcome:''},
+        {id:uid(),label:'Result / Output',maxMarks:10,outcome:''},
+        {id:uid(),label:'Viva / Explanation',maxMarks:10,outcome:''}
+      ];
+      $('evaluationName').value='Final Lab Test';
+      $('evaluationMax').value='40';
+      $('evaluationMax').readOnly=true;
+      $('evaluationCreatorTitle').textContent='Create final lab test';
+      $('evaluationCreatorHelp').textContent='Final lab assessment · 40 marks. Customize the rubric below.';
+      $('createEvaluationBtn').textContent='Create final lab test';
+    }else{
+      const count=continuousEvaluations(c).length;
+      rubricDraft=[
+        {id:uid(),label:'Performance',maxMarks:10,outcome:''},
+        {id:uid(),label:'Task completion',maxMarks:10,outcome:''},
+        {id:uid(),label:'Viva / Explanation',maxMarks:5,outcome:''}
+      ];
+      $('evaluationName').value=`Lab Evaluation ${count+1}`;
+      $('evaluationMax').value='25';
+      $('evaluationMax').readOnly=false;
+      $('evaluationCreatorTitle').textContent='Create lab evaluation';
+      $('evaluationCreatorHelp').textContent='Create a rubric-based evaluation. Multiple evaluations are averaged to 25.';
+      $('createEvaluationBtn').textContent='Create evaluation';
+    }
     $('evaluationCreator').classList.remove('hidden');
     renderRubricBuilder();
     $('evaluationName').focus();
-  };
-  $('cancelEvaluationBtn').onclick=()=>$('evaluationCreator').classList.add('hidden');
+  }
+
+  $('newEvaluationBtn').onclick=()=>openEvaluationCreator('continuous');
+  $('newFinalLabTestBtn').onclick=()=>openEvaluationCreator('final_lab');
+  $('cancelEvaluationBtn').onclick=()=>{ $('evaluationCreator').classList.add('hidden'); $('evaluationMax').readOnly=false; evaluationCreateType='continuous'; };
 
   $('createEvaluationBtn').onclick=()=>{
     const c=currentEvaluationCourse();
     if(!c||!isLabCourse(c)) return toast('Choose a lab course first.');
     const title=$('evaluationName').value.trim();
-    const maxMarks=Number($('evaluationMax').value)||0;
+    const maxMarks=evaluationCreateType==='final_lab'?40:(Number($('evaluationMax').value)||0);
     const rubric=rubricDraft.map(r=>({id:r.id||uid(),label:String(r.label||'').trim(),maxMarks:Number(r.maxMarks)||0,outcome:String(r.outcome||'').trim()})).filter(r=>r.label&&r.maxMarks>0);
     const sum=rubric.reduce((a,r)=>a+r.maxMarks,0);
     if(!title||maxMarks<=0) return toast('Enter evaluation name and maximum marks.');
@@ -1504,9 +1580,12 @@
     if(Math.abs(sum-maxMarks)>0.001) return toast(`Rubric total must equal ${maxMarks} marks.`);
     const now=new Date().toISOString();
     c.evaluations ||= []; c.deletedEvaluations ||= {};
-    const ev={id:uid(),title,maxMarks,rubric,scores:{},notes:{},finalizedAt:null,createdAt:now,updatedAt:now};
+    if(evaluationCreateType==='final_lab' && finalLabEvaluation(c)) return toast('This course already has a Final Lab Test.');
+    const ev={id:uid(),type:evaluationCreateType,title,maxMarks,rubric,scores:{},notes:{},finalizedAt:null,createdAt:now,updatedAt:now};
     c.evaluations.push(ev); c.updatedAt=now; persist();
     $('evaluationCreator').classList.add('hidden');
+    $('evaluationMax').readOnly=false;
+    evaluationCreateType='continuous';
     renderAll();
     $('evalCourseSelect').value=c.id;
     renderEvaluationSelectors();
@@ -1535,8 +1614,23 @@
   function renderFinalAverage(course){
     const panel=$('evaluationFinalAverage');
     const finals=finalizedEvaluations(course);
-    if(!finals.length){ panel.innerHTML='<strong>Final average /25</strong><p class="muted small">Save at least one evaluation to calculate the converted average.</p>'; return; }
-    panel.innerHTML=`<div class="card-title-row"><div><strong>Final average /25</strong><div class="muted small">${finals.length} saved evaluation${finals.length===1?'':'s'} averaged after normalizing each evaluation to 25.</div></div></div>${course.students.map(st=>{ const avg=finalAverage25(course,st.id); const entered=finals.filter(ev=>Object.keys(ev.scores?.[st.id]||{}).length>0).length; return `<div class="evaluation-average-grid"><div><strong>${esc(st.name)}</strong><div class="muted small">${esc(st.id)}</div></div><div class="eval-count">${entered}/${finals.length} entered</div><div>${avg===null?'—':avg.toFixed(2)}</div><div>/25</div></div>`; }).join('')}`;
+    const finalLab=finalLabEvaluation(course);
+    const finalLabSaved=!!finalLab?.finalizedAt;
+
+    if(!finals.length && !finalLabSaved){
+      panel.innerHTML='<strong>Lab marks summary</strong><p class="muted small">Save lab evaluations and/or the Final Lab Test to see converted marks here.</p>';
+      return;
+    }
+
+    panel.innerHTML=`
+      <div class="card-title-row"><div><strong>Lab marks summary</strong><div class="muted small">Lab evaluation average is converted to 25. Final Lab Test remains out of 40.</div></div></div>
+      <div class="final-summary-head"><span>Student</span><span>Evaluation avg /25</span><span>Final lab /40</span></div>
+      ${course.students.map(st=>{
+        const avg=finalAverage25(course,st.id);
+        const finalMark=finalLabSaved?evaluationStudentTotal(finalLab,st.id):null;
+        return `<div class="final-summary-row"><div><strong>${esc(st.name)}</strong><div class="muted small">${esc(st.id)}</div></div><div>${avg===null?'—':avg.toFixed(2)} /25</div><div>${finalMark===null?'—':finalMark.toFixed(2)} /40</div></div>`;
+      }).join('')}
+    `;
   }
 
   function renderEvaluation(){
@@ -1556,14 +1650,17 @@
     $('evaluationTitle').textContent=`${ev.title} · ${ev.maxMarks} marks`;
     $('evaluationRubricText').textContent=(ev.rubric||[]).map(r=>`${r.label} (${r.maxMarks})${r.outcome?' · '+r.outcome:''}`).join(' · ');
     const completed=c.students.filter(st=>Object.keys(ev.scores?.[st.id]||{}).length>0).length;
-    const classAvg=finalizedEvaluations(c).length?c.students.reduce((sum,st)=>sum+(finalAverage25(c,st.id)||0),0)/Math.max(1,c.students.length):null;
-    $('evaluationSummary').innerHTML=metric('Students',c.students.length)+metric('Entered',completed)+metric('Evaluation',`${ev.maxMarks}`)+metric('Class avg /25',classAvg===null?'—':classAvg.toFixed(2));
+    const isFinalLab=ev.type==='final_lab';
+    const classAvg=isFinalLab
+      ? (completed?c.students.reduce((sum,st)=>sum+evaluationStudentTotal(ev,st.id),0)/Math.max(1,c.students.length):null)
+      : (finalizedEvaluations(c).length?c.students.reduce((sum,st)=>sum+(finalAverage25(c,st.id)||0),0)/Math.max(1,c.students.length):null);
+    $('evaluationSummary').innerHTML=metric('Students',c.students.length)+metric('Entered',completed)+metric('Evaluation',`${ev.maxMarks}`)+metric(isFinalLab?'Class avg /40':'Class avg /25',classAvg===null?'—':classAvg.toFixed(2));
     $('saveEvaluationMarksBtn').classList.toggle('hidden',!editable);
     $('editEvaluationBtn').classList.toggle('hidden',editable||!finalized);
     const el=$('evaluationStudents');
     el.innerHTML=c.students.map(st=>{
       const marks=ev.scores?.[st.id]||{}; const total=evaluationStudentTotal(ev,st.id); const avg=finalAverage25(c,st.id); const note=ev.notes?.[st.id]||'';
-      return `<div class="eval-student-row" style="--rubric-count:${Math.max(1,(ev.rubric||[]).length)}" data-eval-student="${esc(st.id)}"><div class="eval-student-id"><strong>${esc(st.name)}</strong><small>${esc(st.id)}</small></div>${(ev.rubric||[]).map(r=>`<div class="eval-score-field"><label>${esc(r.label)} / ${r.maxMarks}${r.outcome?' · '+esc(r.outcome):''}</label><input ${editable?'':'readonly'} class="${editable?'':'eval-readonly'}" type="number" min="0" max="${r.maxMarks}" step="0.5" data-score-student="${esc(st.id)}" data-score-rubric="${r.id}" value="${marks[r.id]??''}" placeholder="0" /></div>`).join('')}<div class="eval-total" data-current-total="${esc(st.id)}">${total}/${ev.maxMarks}</div><div class="eval-overall">${avg===null?'—':avg.toFixed(2)}/25</div><div class="evaluation-note"><input ${editable?'':'readonly'} class="${editable?'':'eval-readonly'}" data-note-student="${esc(st.id)}" value="${esc(note)}" placeholder="Short note (optional)" /></div></div>`;
+      return `<div class="eval-student-row" style="--rubric-count:${Math.max(1,(ev.rubric||[]).length)}" data-eval-student="${esc(st.id)}"><div class="eval-student-id"><strong>${esc(st.name)}</strong><small>${esc(st.id)}</small></div>${(ev.rubric||[]).map(r=>`<div class="eval-score-field"><label>${esc(r.label)} / ${r.maxMarks}${r.outcome?' · '+esc(r.outcome):''}</label><input ${editable?'':'readonly'} class="${editable?'':'eval-readonly'}" type="number" min="0" max="${r.maxMarks}" step="0.5" data-score-student="${esc(st.id)}" data-score-rubric="${r.id}" value="${marks[r.id]??''}" placeholder="0" /></div>`).join('')}<div class="eval-total" data-current-total="${esc(st.id)}">${total}/${ev.maxMarks}</div><div class="eval-overall">${ev.type==='final_lab'?'Lab avg '+(avg===null?'—':avg.toFixed(2))+'/25':(avg===null?'—':avg.toFixed(2))+'/25'}</div><div class="evaluation-note"><input ${editable?'':'readonly'} class="${editable?'':'eval-readonly'}" data-note-student="${esc(st.id)}" value="${esc(note)}" placeholder="Short note (optional)" /></div></div>`;
     }).join('');
     if(editable){
       el.querySelectorAll('input[data-score-student]').forEach(inp=>inp.oninput=()=>{
