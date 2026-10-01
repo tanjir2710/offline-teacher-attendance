@@ -282,6 +282,13 @@
       .evaluation-average-grid{font-size:.78rem}
     }
 
+  
+    .lab-mobile-checks{display:none}
+    @media(max-width:800px){
+      .desktop-lab-check{display:none!important}
+      .student-row.lab-row .lab-mobile-checks{display:grid}
+    }
+
   </style>
 </head>
 <body>
@@ -1530,46 +1537,43 @@
 
   function renderStats(){
     const sel=$('statsCourseSelect'); const c=currentCourse(sel.value);
-    if(!c){
-      $('statsSummary').innerHTML='';
-      $('sessionStatsTable').innerHTML='<div class="empty-state">No course selected.</div>';
-      $('studentStatsTable').innerHTML='';
-      drawChart([]);
-      return;
-    }
-    const sessions=sortedSessions(c), n=c.students.length; let totalP=0;
-    const rows=sessions.map(([d,s])=>{ const p=(s.presentIds||[]).length,a=n-p,rate=n?p/n*100:0; totalP+=p; return {d,p,a,rate}; });
+    if(!c){ $('statsSummary').innerHTML=''; $('sessionStatsTable').innerHTML='<div class="empty-state">No course selected.</div>'; $('studentStatsTable').innerHTML=''; drawChart([]); return; }
+    const lab=isLabCourse(c);
+    const sessions=sortedSessions(c), n=c.students.length; let totalP=0,totalReports=0,totalTasks=0;
+    const rows=sessions.map(([d,s])=>{
+      const p=(s.presentIds||[]).length, a=n-p, reports=(s.labReportIds||[]).length, tasks=(s.labTaskIds||[]).length, rate=n?p/n*100:0;
+      totalP+=p; totalReports+=reports; totalTasks+=tasks;
+      return {d,p,a,reports,tasks,rate};
+    });
     const overall=sessions.length&&n?Math.round(totalP/(sessions.length*n)*100):0;
     const red=c.students.filter(st=>studentRisk(c,st.id).level==='red').length;
     const yellow=c.students.filter(st=>studentRisk(c,st.id).level==='yellow').length;
-    $('statsSummary').innerHTML=metric('Classes',sessions.length)+metric('Attendance',`${overall}%`)+metric('Red alerts',red)+metric('Yellow alerts',yellow);
+    $('statsSummary').innerHTML=lab
+      ? metric('Classes',sessions.length)+metric('Attendance',`${overall}%`)+metric('Reports',totalReports)+metric('Lab tasks',totalTasks)
+      : metric('Classes',sessions.length)+metric('Attendance',`${overall}%`)+metric('Red alerts',red)+metric('Yellow alerts',yellow);
 
     if(rows.length){
-      const desktop=table(['Date','Present','Absent','Rate'],rows.map(r=>[fmtDate(r.d),r.p,r.a,`${Math.round(r.rate)}%`]));
-      const mobile=`<div class="mobile-stat-list">${rows.slice().reverse().map(r=>`
-        <div class="mobile-stat-row">
-          <div class="mobile-stat-main"><strong>${esc(fmtDate(r.d))}</strong><span>${Math.round(r.rate)}%</span></div>
-          <div class="mobile-stat-meta"><span><b>${r.p}</b> Present</span><span><b>${r.a}</b> Absent</span></div>
-        </div>`).join('')}</div>`;
+      const desktop=lab
+        ? table(['Date','Present','Absent','Reports','Tasks','Rate'],rows.map(r=>[fmtDate(r.d),r.p,r.a,r.reports,r.tasks,`${Math.round(r.rate)}%`]))
+        : table(['Date','Present','Absent','Rate'],rows.map(r=>[fmtDate(r.d),r.p,r.a,`${Math.round(r.rate)}%`]));
+      const mobile=`<div class="mobile-stat-list">${rows.slice().reverse().map(r=>`<div class="mobile-stat-row"><div class="mobile-stat-main"><strong>${esc(fmtDate(r.d))}</strong><span>${Math.round(r.rate)}%</span></div><div class="mobile-stat-meta"><span><b>${r.p}</b> Present</span><span><b>${r.a}</b> Absent</span>${lab?`<span><b>${r.reports}</b> Reports</span><span><b>${r.tasks}</b> Tasks</span>`:''}</div></div>`).join('')}</div>`;
       $('sessionStatsTable').innerHTML=`<div class="desktop-stats-table">${desktop}</div>${mobile}`;
-    }else{
-      $('sessionStatsTable').innerHTML='<div class="empty-state">No recorded classes yet.</div>';
-    }
+    }else $('sessionStatsTable').innerHTML='<div class="empty-state">No recorded classes yet.</div>';
 
     const sr=c.students.map(st=>{
-      let p=0;
-      for(const [,session] of sessions) if((session.presentIds||[]).includes(st.id)) p++;
-      const a=sessions.length-p;
-      const rate=sessions.length?Math.round(p/sessions.length*100):0;
-      const risk=studentRisk(c,st.id);
-      return {id:st.id,name:st.name,p,a,rate,streak:risk.streak,level:risk.level};
+      let p=0,reports=0,tasks=0;
+      for(const [,session] of sessions){
+        if((session.presentIds||[]).includes(st.id)) p++;
+        if((session.labReportIds||[]).includes(st.id)) reports++;
+        if((session.labTaskIds||[]).includes(st.id)) tasks++;
+      }
+      const a=sessions.length-p, rate=sessions.length?Math.round(p/sessions.length*100):0, risk=studentRisk(c,st.id);
+      return {id:st.id,name:st.name,p,a,reports,tasks,rate,streak:risk.streak,level:risk.level};
     });
-    const desktopStudents=table(['ID','Name','P','A','Rate','Streak'],sr.map(r=>[r.id,r.name,r.p,r.a,`${r.rate}%`,r.streak]));
-    const mobileStudents=`<div class="mobile-stat-list student-mobile-list">${sr.map(r=>`
-      <div class="mobile-stat-row student-stat-row ${r.level}">
-        <div class="student-stat-head"><div><strong>${esc(r.name)}</strong><small>${esc(r.id)}</small></div><span class="rate-chip">${r.rate}%</span></div>
-        <div class="mobile-stat-meta"><span><b>${r.p}</b> Present</span><span><b>${r.a}</b> Absent</span>${r.streak? `<span><b>${r.streak}</b> streak</span>`:''}</div>
-      </div>`).join('')}</div>`;
+    const desktopStudents=lab
+      ? table(['ID','Name','P','A','Reports','Tasks','Rate'],sr.map(r=>[r.id,r.name,r.p,r.a,r.reports,r.tasks,`${r.rate}%`]))
+      : table(['ID','Name','P','A','Rate','Streak'],sr.map(r=>[r.id,r.name,r.p,r.a,`${r.rate}%`,r.streak]));
+    const mobileStudents=`<div class="mobile-stat-list student-mobile-list">${sr.map(r=>`<div class="mobile-stat-row student-stat-row ${r.level}"><div class="student-stat-head"><div><strong>${esc(r.name)}</strong><small>${esc(r.id)}</small></div><span class="rate-chip">${r.rate}%</span></div><div class="mobile-stat-meta"><span><b>${r.p}</b> Present</span><span><b>${r.a}</b> Absent</span>${lab?`<span><b>${r.reports}</b> Reports</span><span><b>${r.tasks}</b> Tasks</span>`:''}${r.streak?`<span><b>${r.streak}</b> streak</span>`:''}</div></div>`).join('')}</div>`;
     $('studentStatsTable').innerHTML=`<div class="desktop-stats-table">${desktopStudents}</div>${mobileStudents}`;
     drawChart(rows);
   }
