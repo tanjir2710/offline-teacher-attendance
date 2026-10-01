@@ -12,7 +12,7 @@ for (const id of [
   'attendanceList','saveAttendanceBtn','firebaseSyncStatus','googleSignInMount',
   'firebaseSignOutBtn','feedbackRating','feedbackCategory','feedbackMessage','feedbackSubmitBtn',
   'editAttendanceBtn','cancelAttendanceEditBtn','evalCourseSelect','evalSelect','newEvaluationBtn',
-  'rubricBuilderRows','saveEvaluationMarksBtn','evaluationStudents','courseType','evaluationList','editEvaluationBtn','closeEvaluationBtn','newFinalLabTestBtn'
+  'rubricBuilderRows','saveEvaluationMarksBtn','evaluationStudents','courseType','evaluationList','editEvaluationBtn','closeEvaluationBtn','newFinalLabTestBtn','labReportMax','labTaskMax','exportEvaluationExcelBtn','exportLabSummaryBtn'
 ]) {
   if (!html.includes('id="'+id+'"')) fail('Missing required staging element #'+id);
 }
@@ -42,3 +42,8 @@ if (html.includes('<span>Alerts</span></div>')) fail('Old lab Alerts header stil
 if (!html.includes("type==='final_lab'")) fail('Final Lab Test evaluation type missing');
 if (!html.includes('Final lab /40')) fail('Final Lab Test 40-mark summary missing');
 if (!html.includes('Evaluation avg /25')) fail('Continuous lab evaluation average /25 missing');
+
+if (!html.includes('function exportCurrentEvaluationExcel')) fail('Evaluation Excel export missing');
+if (!html.includes('function exportLabSummaryExcel')) fail('Lab summary Excel export missing');
+if (!html.includes('function componentMark(completed,total,maxMarks)')) fail('Configurable daily lab mark conversion missing');
+if (!html.includes('id="labComponentPreview"')) fail('Converted daily mark preview missing');
