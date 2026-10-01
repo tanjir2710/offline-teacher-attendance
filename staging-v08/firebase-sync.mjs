@@ -24,7 +24,7 @@ import {
   serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
-const APP_VERSION = '0.8.0-rc10';
+const APP_VERSION = '0.8.0-rc11';
 const GOOGLE_WEB_CLIENT_ID = '460419019734-lhvkcq795cg41k6cet2mvcnmmq3djcht.apps.googleusercontent.com';
 const DEVICE_KEY = 'offlineTeacherAttendance.stagingV08.deviceId.v1';
 
