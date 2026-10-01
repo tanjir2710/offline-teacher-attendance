@@ -60,7 +60,7 @@
     @media(max-width:480px){.status-strip,.stat-cards{grid-template-columns:1fr 1fr}.tab{padding:9px 11px;font-size:.88rem}.toolbar-actions{width:100%}.toolbar-actions button{flex:1 1 44%}}
     @media print{.tabs,.app-header,.no-print,.toast{display:none!important}.shell{max-width:none;padding:0}.view{display:none!important}#view-portal{display:block!important}.card{box-shadow:none;border:0}.table-wrap{border:0}}
   
-    /* v0.8 RC9 professional UI refresh */
+    /* v0.8 RC10 professional UI refresh */
     :root{
       --bg:#f7f8fa;--card:#fff;--ink:#111827;--muted:#667085;--line:#e4e7ec;
       --brand:#2457d6;--brand2:#1d47b4;--ok:#18794e;--okbg:#eef8f3;
@@ -211,6 +211,42 @@
       .update-card{padding:20px 16px;border-radius:16px}
     }
 
+  
+    /* Saved attendance is locked until Update attendance is pressed */
+    .save-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .saved-attendance-panel{border:1px solid #b7e0ca;background:#f4fbf7;border-radius:12px;padding:22px;text-align:center;color:#19643a}
+    .saved-attendance-icon{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;margin:0 auto 9px;background:#dff4e8;font-size:1.35rem;font-weight:900}
+    .saved-attendance-panel strong{display:block;color:#175c37;margin-bottom:4px}
+    /* Lab evaluation */
+    .evaluation-heading{align-items:flex-start}
+    .evaluation-toolbar{margin:14px 0}
+    .evaluation-creator{margin:14px 0 18px;padding:16px;border:1px solid var(--line);border-radius:12px;background:#fafbfc}
+    .rubric-builder{margin:15px 0}
+    .rubric-row{display:grid;grid-template-columns:minmax(160px,1fr) 130px 42px;gap:8px;align-items:end;margin-bottom:8px}
+    .rubric-remove{height:42px;padding:0;background:#fff3f2;color:#b42318}
+    .rubric-total{font-size:.82rem;color:#667085;margin:6px 0 12px;text-align:right}
+    .rubric-total.invalid{color:#b42318;font-weight:700}
+    .evaluation-title-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:12px 0}
+    .evaluation-title-row h3{margin:0}
+    .evaluation-students{display:grid;gap:7px}
+    .eval-student-row{--rubric-count:1;display:grid;grid-template-columns:minmax(190px,1.25fr) repeat(var(--rubric-count),minmax(90px,.65fr)) 92px 104px;gap:8px;align-items:center;border:1px solid var(--line);border-radius:11px;padding:10px;background:#fff}
+    .eval-student-id strong{display:block;font-size:.86rem}.eval-student-id small{display:block;color:#667085;margin-top:2px}
+    .eval-score-field label{font-size:.68rem;color:#667085;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .eval-score-field input{padding:8px;text-align:center}
+    .eval-total{text-align:center;font-weight:800}.eval-overall{text-align:center;color:#2457d6;font-weight:800}
+    .evaluation-dirty{background:#fff9eb;border-color:#f0d58c}
+    @media(max-width:700px){
+      .evaluation-heading{display:block}.evaluation-heading>button{margin-top:10px;width:100%}
+      .evaluation-toolbar{display:grid}.evaluation-toolbar .toolbar-actions{width:auto}
+      .rubric-row{grid-template-columns:1fr 92px 40px}
+      .eval-student-row{display:block;padding:12px}
+      .eval-student-id{margin-bottom:9px}
+      .eval-score-field{display:grid;grid-template-columns:1fr 92px;align-items:center;gap:8px;margin-top:7px}
+      .eval-score-field label{font-size:.76rem;margin:0;white-space:normal}
+      .eval-total,.eval-overall{display:inline-block;margin:10px 12px 0 0;text-align:left}
+      .evaluation-title-row{align-items:flex-end}.evaluation-title-row>button{white-space:nowrap}
+    }
+
   </style>
 </head>
 <body>
@@ -228,7 +264,7 @@
     <div class="header-actions">
       <div id="connectionBadge" class="badge">Checking…</div>
       <div id="cloudAuthBadge" class="badge file">Local only</div>
-      <div id="versionBadge" class="badge meta-badge">v0.8 RC9</div>
+      <div id="versionBadge" class="badge meta-badge">v0.8 RC10</div>
       <div id="installStatus" class="badge file meta-badge">Browser mode</div>
       <div id="googleSignInMount" class="no-print google-signin-mount"></div>
       <button id="firebaseSignOutBtn" class="secondary no-print hidden">Sign out</button>
@@ -256,6 +292,7 @@
     <button class="tab" data-view="alerts">Alerts <span id="alertNavCount" class="nav-count">0</span></button>
     <button id="moreMenuBtn" class="tab more-tab" type="button" aria-expanded="false">More</button>
     <div id="moreMenu" class="more-menu hidden">
+      <button class="more-item" data-more-view="evaluation">Lab Evaluation</button>
       <button class="more-item" data-more-view="portal">Portal View</button>
       <button class="more-item" data-more-view="backup">Sync & Backup</button>
       <button class="more-item" data-more-view="feedback">Feedback</button>
@@ -297,14 +334,21 @@
         <div class="toolbar responsive">
           <label class="grow">Course<select id="attendanceCourseSelect"></select></label>
           <label>Class date<input id="attendanceDate" type="date" /></label>
-          <div class="toolbar-actions no-print">
+          <div id="attendanceEditActions" class="toolbar-actions no-print">
             <button id="markAllBtn" class="secondary">Mark all</button>
             <button id="clearAllBtn" class="secondary">Clear all</button>
             <button id="deleteSessionBtn" class="danger ghost">Delete date</button>
           </div>
         </div>
         <div id="attendanceStatus" class="status-strip"></div>
-        <div id="saveStrip" class="save-strip hidden"><div><strong id="saveMessage">New class date</strong><div class="muted small">Tick only present students. Press Save when finished.</div></div><button id="saveAttendanceBtn" class="primary">Save attendance</button></div>
+        <div id="saveStrip" class="save-strip hidden">
+          <div><strong id="saveMessage">New class date</strong><div id="saveHelp" class="muted small">Tick only present students. Press Save when finished.</div></div>
+          <div class="save-actions no-print">
+            <button id="cancelAttendanceEditBtn" class="secondary hidden">Cancel</button>
+            <button id="editAttendanceBtn" class="secondary hidden">Update attendance</button>
+            <button id="saveAttendanceBtn" class="primary">Save attendance</button>
+          </div>
+        </div>
         <div id="attendanceList" class="attendance-list empty-state">Create or choose a course.</div>
       </article>
     </section>
@@ -322,6 +366,45 @@
         <div class="stat-cards" id="statsSummary"></div>
         <div class="chart-wrap"><h3>Attendance rate by class date</h3><canvas id="attendanceChart" width="1000" height="420"></canvas></div>
         <div class="grid two" style="margin-top:16px"><div><h3>Class history</h3><div id="sessionStatsTable" class="table-wrap"></div></div><div><h3>Student attendance</h3><div id="studentStatsTable" class="table-wrap"></div></div></div>
+      </article>
+    </section>
+
+    <section id="view-evaluation" class="view">
+      <article class="card">
+        <div class="card-title-row evaluation-heading">
+          <div><h2>Lab Evaluation</h2><p class="muted">Create any number of evaluations, define rubric marks, and enter student scores.</p></div>
+          <button id="newEvaluationBtn" class="primary no-print">New evaluation</button>
+        </div>
+
+        <div class="toolbar evaluation-toolbar">
+          <label class="grow">Course / Lab section<select id="evalCourseSelect"></select></label>
+          <label class="grow">Evaluation<select id="evalSelect"></select></label>
+          <div class="toolbar-actions no-print"><button id="deleteEvaluationBtn" class="danger ghost">Delete evaluation</button></div>
+        </div>
+
+        <div id="evaluationCreator" class="evaluation-creator hidden">
+          <div class="card-title-row"><div><h3>Create evaluation</h3><p class="muted small">Example: Lab Evaluation 1 · 25 marks</p></div><button id="cancelEvaluationBtn" class="secondary">Cancel</button></div>
+          <div class="form-grid">
+            <label>Evaluation name<input id="evaluationName" placeholder="e.g. Lab Evaluation 1" /></label>
+            <label>Maximum marks<input id="evaluationMax" type="number" min="1" step="0.5" value="25" /></label>
+          </div>
+          <div class="rubric-builder">
+            <div class="card-title-row"><h3>Rubric</h3><button id="addRubricCriterionBtn" class="secondary" type="button">+ Add criterion</button></div>
+            <div id="rubricBuilderRows"></div>
+            <div id="rubricTotal" class="rubric-total"></div>
+          </div>
+          <button id="createEvaluationBtn" class="primary">Create evaluation</button>
+        </div>
+
+        <div id="evaluationEmpty" class="empty-state">Choose a course, then create an evaluation.</div>
+        <div id="evaluationWorkspace" class="hidden">
+          <div id="evaluationSummary" class="status-strip"></div>
+          <div class="evaluation-title-row">
+            <div><h3 id="evaluationTitle"></h3><p id="evaluationRubricText" class="muted small"></p></div>
+            <button id="saveEvaluationMarksBtn" class="primary no-print">Save marks</button>
+          </div>
+          <div id="evaluationStudents" class="evaluation-students"></div>
+        </div>
       </article>
     </section>
 
@@ -387,7 +470,7 @@
   const PRE_V08_BACKUP_KEY = 'offlineTeacherAttendance.stagingV08.preMigrationBackup';
   const UPDATE_BACKUP_KEY = 'offlineTeacherAttendance.stagingV08.updateBackup';
   const UPDATE_BACKUP_META_KEY = 'offlineTeacherAttendance.stagingV08.updateBackupMeta';
-  const APP_VERSION = '0.8.0-rc9';
+  const APP_VERSION = '0.8.0-rc10';
   const DB_NAME = 'OfflineTeacherAttendanceDB-StagingV08';
   const DB_STORE = 'app';
   const DB_STATE_KEY = 'state';
@@ -416,7 +499,7 @@
   let syncTimer = null;
   let syncInFlight = false;
   let authWatchdog = null;
-  let draft = { courseId:null, date:null, present:new Set(), existing:false, dirty:false };
+  let draft = { courseId:null, date:null, present:new Set(), existing:false, dirty:false, editing:false };
 
   function preservePreV08Snapshot(){
     try{
@@ -578,9 +661,18 @@
     for(const c of x.courses){
       c.sessions ||= {};
       c.deletedSessions ||= {};
+      c.evaluations ||= [];
+      c.deletedEvaluations ||= {};
+      for(const ev of c.evaluations){
+        ev.rubric ||= [];
+        ev.scores ||= {};
+        ev.updatedAt ||= ev.createdAt || c.updatedAt || c.createdAt;
+      }
       const sessionTimes=Object.values(c.sessions).map(v=>v?.updatedAt);
       const deletedTimes=Object.values(c.deletedSessions);
-      c.updatedAt ||= isoMax(c.createdAt,...sessionTimes,...deletedTimes);
+      const evaluationTimes=c.evaluations.map(v=>v?.updatedAt);
+      const deletedEvaluationTimes=Object.values(c.deletedEvaluations);
+      c.updatedAt ||= isoMax(c.createdAt,...sessionTimes,...deletedTimes,...evaluationTimes,...deletedEvaluationTimes);
     }
     x.version=4;
     x.lastModified ||= isoMax(...x.courses.map(c=>c.updatedAt),...Object.values(x.deletedCourses));
@@ -600,7 +692,7 @@
     const lc=deepCopy(localCourse), rc=deepCopy(remoteCourse);
     lc.sessions ||= {}; rc.sessions ||= {}; lc.deletedSessions ||= {}; rc.deletedSessions ||= {};
     const base=timeValue(lc.updatedAt||lc.createdAt)>=timeValue(rc.updatedAt||rc.createdAt)?lc:rc;
-    const out={...deepCopy(base),sessions:{},deletedSessions:mergeTimestampMaps(lc.deletedSessions,rc.deletedSessions)};
+    const out={...deepCopy(base),sessions:{},deletedSessions:mergeTimestampMaps(lc.deletedSessions,rc.deletedSessions),evaluations:[],deletedEvaluations:mergeTimestampMaps(lc.deletedEvaluations,rc.deletedEvaluations)};
     const dates=new Set([...Object.keys(lc.sessions),...Object.keys(rc.sessions),...Object.keys(out.deletedSessions)]);
     for(const d of dates){
       const ls=lc.sessions[d], rs=rc.sessions[d], del=out.deletedSessions[d];
@@ -609,10 +701,19 @@
       else chosen=ls||rs||null;
       if(chosen && timeValue(del)<timeValue(chosen.updatedAt)) out.sessions[d]=deepCopy(chosen);
     }
+    const le=new Map((lc.evaluations||[]).map(v=>[v.id,v])), re=new Map((rc.evaluations||[]).map(v=>[v.id,v]));
+    for(const id of new Set([...le.keys(),...re.keys(),...Object.keys(out.deletedEvaluations)])){
+      const a=le.get(id), b=re.get(id), del=out.deletedEvaluations[id];
+      const chosen=a&&b?(timeValue(a.updatedAt)>=timeValue(b.updatedAt)?a:b):(a||b);
+      if(chosen && timeValue(del)<timeValue(chosen.updatedAt)) out.evaluations.push(deepCopy(chosen));
+    }
+    out.evaluations.sort((a,b)=>(a.createdAt||'').localeCompare(b.createdAt||''));
     out.updatedAt=isoMax(
       lc.updatedAt,rc.updatedAt,lc.createdAt,rc.createdAt,
       ...Object.values(out.sessions).map(v=>v?.updatedAt),
-      ...Object.values(out.deletedSessions)
+      ...Object.values(out.deletedSessions),
+      ...out.evaluations.map(v=>v?.updatedAt),
+      ...Object.values(out.deletedEvaluations)
     );
     return out;
   }
@@ -822,12 +923,13 @@
   function switchView(name){
     document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===`view-${name}`));
     document.querySelectorAll('.tab[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===name));
-    const secondary=['portal','backup','feedback'].includes(name);
+    const secondary=['evaluation','portal','backup','feedback'].includes(name);
     $('moreMenuBtn')?.classList.toggle('active',secondary);
     $('moreMenu')?.classList.add('hidden');
     $('moreMenuBtn')?.setAttribute('aria-expanded','false');
     if(name==='alerts') renderAlerts();
     if(name==='statistics') renderStats();
+    if(name==='evaluation') renderEvaluationSelectors();
     if(name==='portal') renderPortalSelectors();
     window.scrollTo({top:0,behavior:'smooth'});
   }
@@ -878,7 +980,7 @@
     if(!section||!code||!name) return toast('Enter section, course code, and course name.');
     if(!importStudents.length) importStudents=parseRoster($('studentPaste').value);
     if(!importStudents.length) return toast('Paste or import the student list first.');
-    { const now=new Date().toISOString(); state.courses.push({id:uid(),section,courseCode:code,courseName:name,alertThreshold:threshold,students:importStudents.map(x=>({...x})),sessions:{},deletedSessions:{},createdAt:now,updatedAt:now}); } persist();
+    { const now=new Date().toISOString(); state.courses.push({id:uid(),section,courseCode:code,courseName:name,alertThreshold:threshold,students:importStudents.map(x=>({...x})),sessions:{},deletedSessions:{},evaluations:[],deletedEvaluations:{},createdAt:now,updatedAt:now}); } persist();
     $('sectionName').value=''; $('courseCode').value=''; $('courseName').value=''; $('studentPaste').value=''; importStudents=[]; $('importPreview').classList.add('hidden');
     renderAll(); toast('Course created.');
   };
@@ -887,14 +989,15 @@
     $('courseCount').textContent=state.courses.length; const el=$('courseList');
     if(!state.courses.length){ el.className='course-list empty-state'; el.textContent='No courses yet.'; return; }
     el.className='course-list'; el.innerHTML=state.courses.map(c=>{
-      const sessions=sortedSessions(c).length; return `<div class="course-card"><div><strong>${esc(c.section)} · ${esc(c.courseCode)}</strong><div>${esc(c.courseName)}</div><div class="course-meta">${c.students.length} students · ${sessions} recorded classes · alert at ${c.alertThreshold} absences</div></div><div class="course-actions"><button class="secondary" data-open="${c.id}">Take attendance</button><button class="danger ghost" data-delete="${c.id}">Delete</button></div></div>`;
+      const sessions=sortedSessions(c).length; return `<div class="course-card"><div><strong>${esc(c.section)} · ${esc(c.courseCode)}</strong><div>${esc(c.courseName)}</div><div class="course-meta">${c.students.length} students · ${sessions} recorded classes · alert at ${c.alertThreshold} absences</div></div><div class="course-actions"><button class="secondary" data-open="${c.id}">Take attendance</button><button class="secondary" data-evaluate="${c.id}">Evaluate</button><button class="danger ghost" data-delete="${c.id}">Delete</button></div></div>`;
     }).join('');
     el.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>{ $('attendanceCourseSelect').value=b.dataset.open; loadDraft(); switchView('attendance'); });
+    el.querySelectorAll('[data-evaluate]').forEach(b=>b.onclick=()=>{ $('evalCourseSelect').value=b.dataset.evaluate; renderEvaluationSelectors(); switchView('evaluation'); });
     el.querySelectorAll('[data-delete]').forEach(b=>b.onclick=()=>{ const c=currentCourse(b.dataset.delete); if(confirm(`Delete ${c.section} and all its attendance data from all synced devices?`)){ const now=new Date().toISOString(); state.deletedCourses ||= {}; state.deletedCourses[c.id]=now; state.courses=state.courses.filter(x=>x.id!==c.id); persist(); renderAll(); }});
   }
   function courseOptionHtml(){ return state.courses.map(c=>`<option value="${c.id}">${esc(c.section)} · ${esc(c.courseCode)} · ${esc(c.courseName)}</option>`).join(''); }
   function refreshSelects(){
-    for(const id of ['attendanceCourseSelect','statsCourseSelect','portalCourseSelect']){
+    for(const id of ['attendanceCourseSelect','statsCourseSelect','portalCourseSelect','evalCourseSelect']){
       const el=$(id), old=el.value; el.innerHTML=state.courses.length?courseOptionHtml():'<option value="">No courses</option>'; if(state.courses.some(c=>c.id===old)) el.value=old;
     }
   }
@@ -916,41 +1019,351 @@
   }
 
   function loadDraft(){
-    const cid=$('attendanceCourseSelect').value; const date=$('attendanceDate').value||todayISO(); $('attendanceDate').value=date;
-    const c=currentCourse(cid); if(!c){ draft={courseId:null,date:null,present:new Set(),existing:false,dirty:false}; renderAttendance(); return; }
-    const s=(c.sessions||{})[date]; draft={courseId:cid,date,present:new Set(s?.presentIds||[]),existing:!!s,dirty:false}; renderAttendance();
+    const cid=$('attendanceCourseSelect').value;
+    const date=$('attendanceDate').value||todayISO();
+    $('attendanceDate').value=date;
+    const c=currentCourse(cid);
+    if(!c){
+      draft={courseId:null,date:null,present:new Set(),existing:false,dirty:false,editing:false};
+      renderAttendance();
+      return;
+    }
+    const session=(c.sessions||{})[date];
+    draft={courseId:cid,date,present:new Set(session?.presentIds||[]),existing:!!session,dirty:false,editing:!session};
+    renderAttendance();
   }
-  $('attendanceCourseSelect').onchange=loadDraft; $('attendanceDate').onchange=loadDraft;
-  $('markAllBtn').onclick=()=>{ const c=currentCourse(draft.courseId); if(!c)return; draft.present=new Set(c.students.map(s=>s.id)); draft.dirty=true; renderAttendance(); };
-  $('clearAllBtn').onclick=()=>{ if(!draft.courseId)return; draft.present=new Set(); draft.dirty=true; renderAttendance(); };
-  $('deleteSessionBtn').onclick=()=>{ const c=currentCourse(draft.courseId); if(!c||!c.sessions?.[draft.date]) return toast('No saved attendance for this date.'); if(confirm(`Delete attendance for ${fmtDate(draft.date)} from all synced devices?`)){ const now=new Date().toISOString(); delete c.sessions[draft.date]; c.deletedSessions ||= {}; c.deletedSessions[draft.date]=now; c.updatedAt=now; persist(); loadDraft(); renderAll(); toast('Attendance date deleted.'); }};
+  $('attendanceCourseSelect').onchange=loadDraft;
+  $('attendanceDate').onchange=loadDraft;
 
-  $('saveAttendanceBtn').onclick=()=>{
-    const c=currentCourse(draft.courseId); if(!c)return; c.sessions ||= {};
-    const priorRisks=new Map(c.students.map(s=>[s.id,studentRisk(c,s.id)]));
-    const now=new Date().toISOString(); c.sessions[draft.date]={presentIds:[...draft.present],updatedAt:now}; c.deletedSessions ||= {}; delete c.deletedSessions[draft.date]; c.updatedAt=now; persist(); draft.existing=true; draft.dirty=false;
-    const newAlerts=[];
-    for(const st of c.students){ const before=priorRisks.get(st.id), after=studentRisk(c,st.id); if(after.streak>=2 && before.streak<2) newAlerts.push(`${st.name}: ${after.streak} consecutive absences`); else if(after.total>=c.alertThreshold && before.total<c.alertThreshold) newAlerts.push(`${st.name}: ${after.total} total absences`); }
-    renderAll(); renderAttendance(); toast(`Saved ${fmtDate(draft.date)}.`); if(newAlerts.length) notifyAlerts(c,newAlerts);
+  $('editAttendanceBtn').onclick=()=>{
+    const c=currentCourse(draft.courseId);
+    const session=c?.sessions?.[draft.date];
+    if(!c||!session) return;
+    draft.present=new Set(session.presentIds||[]);
+    draft.editing=true;
+    draft.dirty=false;
+    renderAttendance();
+  };
+  $('cancelAttendanceEditBtn').onclick=()=>{
+    const c=currentCourse(draft.courseId);
+    const session=c?.sessions?.[draft.date];
+    if(!session) return loadDraft();
+    draft.present=new Set(session.presentIds||[]);
+    draft.editing=false;
+    draft.dirty=false;
+    renderAttendance();
+  };
+  $('markAllBtn').onclick=()=>{
+    if(!draft.editing) return;
+    const c=currentCourse(draft.courseId); if(!c)return;
+    draft.present=new Set(c.students.map(s=>s.id)); draft.dirty=true; renderAttendance();
+  };
+  $('clearAllBtn').onclick=()=>{
+    if(!draft.courseId||!draft.editing)return;
+    draft.present=new Set(); draft.dirty=true; renderAttendance();
+  };
+  $('deleteSessionBtn').onclick=()=>{
+    const c=currentCourse(draft.courseId);
+    if(!c||!c.sessions?.[draft.date]) return toast('No saved attendance for this date.');
+    if(confirm(`Delete attendance for ${fmtDate(draft.date)} from all synced devices?`)){
+      const now=new Date().toISOString();
+      delete c.sessions[draft.date];
+      c.deletedSessions ||= {};
+      c.deletedSessions[draft.date]=now;
+      c.updatedAt=now;
+      persist();
+      loadDraft();
+      renderAll();
+      toast('Attendance date deleted.');
+    }
   };
 
+  $('saveAttendanceBtn').onclick=()=>{
+    const c=currentCourse(draft.courseId); if(!c||!draft.editing)return;
+    c.sessions ||= {};
+    const priorRisks=new Map(c.students.map(s=>[s.id,studentRisk(c,s.id)]));
+    const now=new Date().toISOString();
+    c.sessions[draft.date]={presentIds:[...draft.present],updatedAt:now};
+    c.deletedSessions ||= {};
+    delete c.deletedSessions[draft.date];
+    c.updatedAt=now;
+    persist();
+    draft.existing=true;
+    draft.dirty=false;
+    draft.editing=false;
+    const newAlerts=[];
+    for(const st of c.students){
+      const before=priorRisks.get(st.id), after=studentRisk(c,st.id);
+      if(after.streak>=2 && before.streak<2) newAlerts.push(`${st.name}: ${after.streak} consecutive absences`);
+      else if(after.total>=c.alertThreshold && before.total<c.alertThreshold) newAlerts.push(`${st.name}: ${after.total} total absences`);
+    }
+    renderAll();
+    renderAttendance();
+    toast(`Attendance saved for ${fmtDate(draft.date)}.`);
+    if(newAlerts.length) notifyAlerts(c,newAlerts);
+  };
+
+  function formatSavedTime(v){
+    if(!v) return '';
+    const d=new Date(v);
+    if(Number.isNaN(d.getTime())) return '';
+    return d.toLocaleString(undefined,{day:'2-digit',month:'short',year:'numeric',hour:'numeric',minute:'2-digit'});
+  }
+
   function renderAttendance(){
-    const c=currentCourse(draft.courseId); const list=$('attendanceList'), strip=$('saveStrip');
-    if(!c){ list.className='attendance-list empty-state'; list.textContent='Create or choose a course.'; strip.classList.add('hidden'); $('attendanceStatus').innerHTML=''; return; }
+    const c=currentCourse(draft.courseId), list=$('attendanceList'), strip=$('saveStrip');
+    if(!c){
+      list.className='attendance-list empty-state';
+      list.textContent='Create or choose a course.';
+      strip.classList.add('hidden');
+      $('attendanceStatus').innerHTML='';
+      return;
+    }
     const n=c.students.length, p=draft.present.size, a=n-p, rate=n?Math.round(p/n*100):0;
     $('attendanceStatus').innerHTML=metric('Students',n)+metric('Present',p)+metric('Absent',a)+metric('Rate',`${rate}%`);
-    strip.classList.remove('hidden'); strip.classList.toggle('dirty',draft.dirty||!draft.existing); $('saveMessage').textContent=draft.existing?(draft.dirty?'Changes not saved':'Saved attendance'):'New class date – not yet saved';
+    strip.classList.remove('hidden');
+
+    const editActions=$('attendanceEditActions');
+    const saveBtn=$('saveAttendanceBtn'), editBtn=$('editAttendanceBtn'), cancelBtn=$('cancelAttendanceEditBtn');
+    const help=$('saveHelp');
+
+    if(draft.existing && !draft.editing){
+      const session=c.sessions?.[draft.date];
+      strip.classList.remove('dirty');
+      $('saveMessage').textContent=`Attendance saved · ${fmtDate(draft.date)}`;
+      help.textContent=(session?.updatedAt?`Saved ${formatSavedTime(session.updatedAt)}. `:'')+'Use Update attendance if you need to change this record.';
+      editBtn.classList.remove('hidden');
+      saveBtn.classList.add('hidden');
+      cancelBtn.classList.add('hidden');
+      editActions.classList.add('hidden');
+      list.className='saved-attendance-panel';
+      list.innerHTML=`<div class="saved-attendance-icon">✓</div><strong>Attendance is saved</strong><div class="muted small">${p} present · ${a} absent · ${rate}% attendance</div>`;
+      return;
+    }
+
+    editActions.classList.remove('hidden');
+    editBtn.classList.add('hidden');
+    saveBtn.classList.remove('hidden');
+    cancelBtn.classList.toggle('hidden',!draft.existing);
+    saveBtn.textContent=draft.existing?'Save changes':'Save attendance';
+    strip.classList.toggle('dirty',draft.dirty||!draft.existing);
+    $('saveMessage').textContent=draft.existing?(draft.dirty?'Editing saved attendance':'Update attendance'):'New class date';
+    help.textContent=draft.existing?'Change the required students, then save.':'Tick present students, then save attendance.';
+
     list.className='attendance-list';
     list.innerHTML=c.students.map(st=>{
-      const risk = draft.existing ? calculateWithDraft(c,st.id) : studentRisk(c,st.id);
-      const checked=draft.present.has(st.id); const flags=[];
-      if(risk.streak>=2) flags.push(`<span class="flag red">${risk.streak} consecutive absences</span>`); else if(risk.total>=2) flags.push(`<span class="flag yellow">${risk.total} total absences</span>`);
-      else if(risk.total===1) flags.push(`<span class="flag">1 absence</span>`);
+      const risk=draft.existing?calculateWithDraft(c,st.id):studentRisk(c,st.id);
+      const checked=draft.present.has(st.id), flags=[];
+      if(risk.streak>=2) flags.push(`<span class="flag red">${risk.streak} consecutive absences</span>`);
+      else if(risk.total>=2) flags.push(`<span class="flag yellow">${risk.total} total absences</span>`);
+      else if(risk.total===1) flags.push('<span class="flag">1 absence</span>');
       return `<label class="student-row ${risk.level}"><span class="check-wrap"><input class="big-check" type="checkbox" data-sid="${esc(st.id)}" ${checked?'checked':''}></span><span class="student-id">${esc(st.id)}</span><span class="student-name">${esc(st.name)}</span><span class="student-flags">${flags.join('')}</span></label>`;
     }).join('');
-    list.querySelectorAll('input[data-sid]').forEach(ch=>ch.onchange=()=>{ if(ch.checked) draft.present.add(ch.dataset.sid); else draft.present.delete(ch.dataset.sid); draft.dirty=true; renderAttendance(); });
+    list.querySelectorAll('input[data-sid]').forEach(ch=>ch.onchange=()=>{
+      if(ch.checked) draft.present.add(ch.dataset.sid); else draft.present.delete(ch.dataset.sid);
+      draft.dirty=true;
+      renderAttendance();
+    });
   }
   function metric(k,v){ return `<div class="metric"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div></div>`; }
+
+
+  let evaluationDraftDirty=false;
+  let rubricDraft=[
+    {id:uid(),label:'Performance',maxMarks:10},
+    {id:uid(),label:'Task completion',maxMarks:10},
+    {id:uid(),label:'Viva / Explanation',maxMarks:5}
+  ];
+
+  function currentEvaluationCourse(){ return currentCourse($('evalCourseSelect').value); }
+  function currentEvaluation(){
+    const c=currentEvaluationCourse();
+    return c?.evaluations?.find(e=>e.id===$('evalSelect').value)||null;
+  }
+  function evaluationTotalMax(course){
+    return (course?.evaluations||[]).reduce((sum,e)=>sum+(Number(e.maxMarks)||0),0);
+  }
+  function evaluationStudentTotal(ev,studentId){
+    const marks=ev?.scores?.[studentId]||{};
+    return (ev?.rubric||[]).reduce((sum,r)=>sum+Math.max(0,Math.min(Number(r.maxMarks)||0,Number(marks[r.id])||0)),0);
+  }
+  function allEvaluationTotal(course,studentId){
+    return (course?.evaluations||[]).reduce((sum,e)=>sum+evaluationStudentTotal(e,studentId),0);
+  }
+  function renderEvaluationSelectors(){
+    const courseSel=$('evalCourseSelect');
+    const course=currentCourse(courseSel.value) || state.courses[0] || null;
+    if(course && courseSel.value!==course.id) courseSel.value=course.id;
+    const evalSel=$('evalSelect');
+    if(!course){
+      evalSel.innerHTML='<option value="">No evaluations</option>';
+      renderEvaluation();
+      return;
+    }
+    course.evaluations ||= [];
+    const old=evalSel.value;
+    evalSel.innerHTML=course.evaluations.length
+      ? course.evaluations.map(e=>`<option value="${e.id}">${esc(e.title)} · ${Number(e.maxMarks)||0} marks</option>`).join('')
+      : '<option value="">No evaluations yet</option>';
+    if(course.evaluations.some(e=>e.id===old)) evalSel.value=old;
+    renderEvaluation();
+  }
+
+  $('evalCourseSelect').onchange=renderEvaluationSelectors;
+  $('evalSelect').onchange=()=>{ evaluationDraftDirty=false; renderEvaluation(); };
+
+  function renderRubricBuilder(){
+    const el=$('rubricBuilderRows');
+    el.innerHTML=rubricDraft.map((r,i)=>`
+      <div class="rubric-row">
+        <label>Criterion<input data-rubric-label="${i}" value="${esc(r.label)}" placeholder="e.g. Task completion" /></label>
+        <label>Marks<input data-rubric-max="${i}" type="number" min="0.5" step="0.5" value="${Number(r.maxMarks)||0}" /></label>
+        <button class="rubric-remove" data-rubric-remove="${i}" type="button" aria-label="Remove criterion">×</button>
+      </div>`).join('');
+    el.querySelectorAll('[data-rubric-label]').forEach(x=>x.oninput=()=>{ rubricDraft[Number(x.dataset.rubricLabel)].label=x.value; });
+    el.querySelectorAll('[data-rubric-max]').forEach(x=>x.oninput=()=>{ rubricDraft[Number(x.dataset.rubricMax)].maxMarks=Number(x.value)||0; renderRubricTotal(); });
+    el.querySelectorAll('[data-rubric-remove]').forEach(x=>x.onclick=()=>{
+      if(rubricDraft.length<=1) return toast('Keep at least one rubric criterion.');
+      rubricDraft.splice(Number(x.dataset.rubricRemove),1); renderRubricBuilder();
+    });
+    renderRubricTotal();
+  }
+  function renderRubricTotal(){
+    const max=Number($('evaluationMax').value)||0;
+    const total=rubricDraft.reduce((s,r)=>s+(Number(r.maxMarks)||0),0);
+    const el=$('rubricTotal');
+    const ok=Math.abs(max-total)<0.001;
+    el.textContent=`Rubric total: ${total} / ${max} marks`+(ok?'':' · rubric must equal evaluation maximum');
+    el.classList.toggle('invalid',!ok);
+  }
+  $('evaluationMax').oninput=renderRubricTotal;
+  $('addRubricCriterionBtn').onclick=()=>{ rubricDraft.push({id:uid(),label:'New criterion',maxMarks:5}); renderRubricBuilder(); };
+  $('newEvaluationBtn').onclick=()=>{
+    const c=currentEvaluationCourse();
+    if(!c) return toast('Create or choose a course first.');
+    rubricDraft=[
+      {id:uid(),label:'Performance',maxMarks:10},
+      {id:uid(),label:'Task completion',maxMarks:10},
+      {id:uid(),label:'Viva / Explanation',maxMarks:5}
+    ];
+    $('evaluationName').value=`Lab Evaluation ${(c.evaluations?.length||0)+1}`;
+    $('evaluationMax').value='25';
+    $('evaluationCreator').classList.remove('hidden');
+    renderRubricBuilder();
+    $('evaluationName').focus();
+  };
+  $('cancelEvaluationBtn').onclick=()=>$('evaluationCreator').classList.add('hidden');
+  $('createEvaluationBtn').onclick=()=>{
+    const c=currentEvaluationCourse(); if(!c)return;
+    const title=$('evaluationName').value.trim();
+    const maxMarks=Number($('evaluationMax').value)||0;
+    const rubric=rubricDraft.map(r=>({id:r.id||uid(),label:String(r.label||'').trim(),maxMarks:Number(r.maxMarks)||0})).filter(r=>r.label&&r.maxMarks>0);
+    const sum=rubric.reduce((a,r)=>a+r.maxMarks,0);
+    if(!title||maxMarks<=0) return toast('Enter evaluation name and maximum marks.');
+    if(!rubric.length) return toast('Add at least one rubric criterion.');
+    if(Math.abs(sum-maxMarks)>0.001) return toast(`Rubric total must equal ${maxMarks} marks.`);
+    const now=new Date().toISOString();
+    c.evaluations ||= [];
+    c.deletedEvaluations ||= {};
+    const ev={id:uid(),title,maxMarks,rubric,scores:{},createdAt:now,updatedAt:now};
+    c.evaluations.push(ev);
+    c.updatedAt=now;
+    persist();
+    $('evaluationCreator').classList.add('hidden');
+    renderAll();
+    $('evalCourseSelect').value=c.id;
+    renderEvaluationSelectors();
+    $('evalSelect').value=ev.id;
+    renderEvaluation();
+    toast('Evaluation created.');
+  };
+  $('deleteEvaluationBtn').onclick=()=>{
+    const c=currentEvaluationCourse(), ev=currentEvaluation();
+    if(!c||!ev) return toast('No evaluation selected.');
+    if(!confirm(`Delete ${ev.title} and all entered marks from all synced devices?`)) return;
+    const now=new Date().toISOString();
+    c.deletedEvaluations ||= {};
+    c.deletedEvaluations[ev.id]=now;
+    c.evaluations=(c.evaluations||[]).filter(x=>x.id!==ev.id);
+    c.updatedAt=now;
+    persist();
+    renderAll();
+    renderEvaluationSelectors();
+    toast('Evaluation deleted.');
+  };
+
+  function renderEvaluation(){
+    const c=currentEvaluationCourse(), ev=currentEvaluation();
+    const empty=$('evaluationEmpty'), work=$('evaluationWorkspace');
+    $('deleteEvaluationBtn').disabled=!ev;
+    if(!c){
+      empty.classList.remove('hidden'); empty.textContent='Create or choose a course.';
+      work.classList.add('hidden'); return;
+    }
+    if(!ev){
+      empty.classList.remove('hidden');
+      empty.textContent=`${c.section} has no evaluations yet. Create one to start entering rubric marks.`;
+      work.classList.add('hidden'); return;
+    }
+    empty.classList.add('hidden'); work.classList.remove('hidden');
+    const overallMax=evaluationTotalMax(c);
+    $('evaluationTitle').textContent=`${ev.title} · ${ev.maxMarks} marks`;
+    $('evaluationRubricText').textContent=(ev.rubric||[]).map(r=>`${r.label} (${r.maxMarks})`).join(' · ');
+    const completed=c.students.filter(st=>Object.keys(ev.scores?.[st.id]||{}).length>0).length;
+    $('evaluationSummary').innerHTML=metric('Students',c.students.length)+metric('Entered',completed)+metric('This evaluation',`${ev.maxMarks}`)+metric('All evaluations',`${overallMax}`);
+    const el=$('evaluationStudents');
+    el.innerHTML=c.students.map(st=>{
+      const marks=ev.scores?.[st.id]||{};
+      const total=evaluationStudentTotal(ev,st.id);
+      const overall=allEvaluationTotal(c,st.id);
+      return `<div class="eval-student-row" style="--rubric-count:${Math.max(1,(ev.rubric||[]).length)}" data-eval-student="${esc(st.id)}">
+        <div class="eval-student-id"><strong>${esc(st.name)}</strong><small>${esc(st.id)}</small></div>
+        ${(ev.rubric||[]).map(r=>`<div class="eval-score-field"><label>${esc(r.label)} / ${r.maxMarks}</label><input type="number" min="0" max="${r.maxMarks}" step="0.5" data-score-student="${esc(st.id)}" data-score-rubric="${r.id}" value="${marks[r.id]??''}" placeholder="0" /></div>`).join('')}
+        <div class="eval-total" data-current-total="${esc(st.id)}">${total}/${ev.maxMarks}</div>
+        <div class="eval-overall" data-overall-total="${esc(st.id)}">${overall}/${overallMax}</div>
+      </div>`;
+    }).join('');
+    el.querySelectorAll('input[data-score-student]').forEach(inp=>inp.oninput=()=>{
+      const max=Number(inp.max)||0;
+      if(inp.value!=='' && Number(inp.value)>max) inp.value=String(max);
+      if(inp.value!=='' && Number(inp.value)<0) inp.value='0';
+      evaluationDraftDirty=true;
+      $('saveEvaluationMarksBtn').textContent='Save changes';
+      $('evaluationWorkspace').classList.add('evaluation-dirty');
+      const sid=inp.dataset.scoreStudent;
+      const row=[...el.querySelectorAll(`input[data-score-student="${CSS.escape(sid)}"]`)];
+      const current=row.reduce((sum,x)=>sum+(Number(x.value)||0),0);
+      const oldCurrent=evaluationStudentTotal(ev,sid);
+      const oldOverall=allEvaluationTotal(c,sid);
+      const newOverall=oldOverall-oldCurrent+current;
+      const ct=el.querySelector(`[data-current-total="${CSS.escape(sid)}"]`);
+      const ot=el.querySelector(`[data-overall-total="${CSS.escape(sid)}"]`);
+      if(ct) ct.textContent=`${current}/${ev.maxMarks}`;
+      if(ot) ot.textContent=`${newOverall}/${overallMax}`;
+    });
+    if(!evaluationDraftDirty){
+      $('saveEvaluationMarksBtn').textContent='Save marks';
+      work.classList.remove('evaluation-dirty');
+    }
+  }
+
+  $('saveEvaluationMarksBtn').onclick=()=>{
+    const c=currentEvaluationCourse(), ev=currentEvaluation(); if(!c||!ev)return;
+    const scores=deepCopy(ev.scores||{});
+    $('evaluationStudents').querySelectorAll('input[data-score-student]').forEach(inp=>{
+      const sid=inp.dataset.scoreStudent, rid=inp.dataset.scoreRubric;
+      scores[sid] ||= {};
+      if(inp.value==='') delete scores[sid][rid];
+      else scores[sid][rid]=Math.max(0,Math.min(Number(inp.max)||0,Number(inp.value)||0));
+      if(!Object.keys(scores[sid]).length) delete scores[sid];
+    });
+    const now=new Date().toISOString();
+    ev.scores=scores; ev.updatedAt=now; c.updatedAt=now;
+    persist();
+    evaluationDraftDirty=false;
+    renderEvaluation();
+    toast('Evaluation marks saved.');
+  };
 
   function allAlerts(){
     const out=[]; for(const c of state.courses){ for(const st of c.students){ const r=studentRisk(c,st.id); if(r.level!=='normal') out.push({course:c,student:st,...r}); } } return out.sort((a,b)=>(a.level==='red'?0:1)-(b.level==='red'?0:1)||b.streak-a.streak||b.total-a.total);
@@ -1122,7 +1535,7 @@
   function download(name,text,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
 
   function renderAll(){
-    renderCourses(); refreshSelects(); renderAlerts();
+    renderCourses(); refreshSelects(); renderAlerts(); renderEvaluationSelectors();
     if(!$('attendanceDate').value) $('attendanceDate').value=todayISO();
     if(!draft.courseId || !state.courses.some(c=>c.id===draft.courseId)){ draft.courseId=$('attendanceCourseSelect').value||null; draft.date=$('attendanceDate').value; draft.present=new Set(); draft.existing=false; draft.dirty=false; if(draft.courseId) loadDraft(); else renderAttendance(); }
     renderStats(); renderPortalSelectors();
