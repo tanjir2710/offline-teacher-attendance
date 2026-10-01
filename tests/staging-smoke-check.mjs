@@ -12,7 +12,7 @@ for (const id of [
   'attendanceList','saveAttendanceBtn','firebaseSyncStatus','googleSignInMount',
   'firebaseSignOutBtn','feedbackRating','feedbackCategory','feedbackMessage','feedbackSubmitBtn',
   'editAttendanceBtn','cancelAttendanceEditBtn','evalCourseSelect','evalSelect','newEvaluationBtn',
-  'rubricBuilderRows','saveEvaluationMarksBtn','evaluationStudents','courseType','evaluationList','editEvaluationBtn','closeEvaluationBtn'
+  'rubricBuilderRows','saveEvaluationMarksBtn','evaluationStudents','courseType','evaluationList','editEvaluationBtn','closeEvaluationBtn','newFinalLabTestBtn'
 ]) {
   if (!html.includes('id="'+id+'"')) fail('Missing required staging element #'+id);
 }
@@ -38,3 +38,7 @@ if (!html.includes("state.courses.filter(isLabCourse)")) fail('Evaluation is not
 
 if (!html.includes('dedicated line below each student')) fail('Student warning sub-row layout missing');
 if (html.includes('<span>Alerts</span></div>')) fail('Old lab Alerts header still present');
+
+if (!html.includes("type==='final_lab'")) fail('Final Lab Test evaluation type missing');
+if (!html.includes('Final lab /40')) fail('Final Lab Test 40-mark summary missing');
+if (!html.includes('Evaluation avg /25')) fail('Continuous lab evaluation average /25 missing');
