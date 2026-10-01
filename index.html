@@ -401,6 +401,146 @@
     .component-preview-table th,.component-preview-table td{padding:8px 9px;border-bottom:1px solid #edf0f4;text-align:left;font-size:.82rem}
     .component-preview-table th{background:#f8fafc;color:#475467}
 
+  
+    /* RC15: iPhone SE evaluation layout fix */
+    .lab-component-config,
+    .lab-component-config > *,
+    .lab-component-controls,
+    .component-preview-details,
+    #labComponentPreview,
+    .component-preview-table{
+      min-width:0;
+      max-width:100%;
+    }
+    .component-preview-mobile{display:none}
+    @media(max-width:600px){
+      #view-evaluation{overflow:hidden}
+      #view-evaluation>.card{min-width:0;padding-left:10px;padding-right:10px}
+      #view-evaluation .evaluation-heading,
+      #view-evaluation .evaluation-title-row{min-width:0;max-width:100%}
+      .evaluation-heading{display:block}
+      .evaluation-heading-actions{display:grid;grid-template-columns:1fr 1fr;width:100%;gap:7px;margin-top:10px}
+      .evaluation-heading-actions button{width:100%;min-width:0;white-space:normal}
+      .evaluation-toolbar{min-width:0;max-width:100%}
+      .evaluation-toolbar label,.evaluation-toolbar select{min-width:0;max-width:100%}
+      .lab-component-config{
+        display:block;
+        width:100%;
+        min-width:0;
+        max-width:100%;
+        padding:12px;
+        overflow:hidden;
+      }
+      .lab-component-controls{
+        display:grid;
+        grid-template-columns:1fr;
+        width:100%;
+        min-width:0;
+        max-width:100%;
+        gap:8px;
+        margin-top:12px;
+      }
+      .lab-component-controls label,
+      .lab-component-controls input,
+      .lab-component-controls button{
+        width:100%;
+        min-width:0;
+        max-width:100%;
+      }
+      .lab-component-controls button{
+        white-space:normal;
+        line-height:1.25;
+      }
+      .component-preview-details{
+        display:block;
+        width:100%;
+        min-width:0;
+        max-width:100%;
+        overflow:hidden;
+        margin-top:12px;
+      }
+      .component-preview-details summary{
+        max-width:100%;
+        overflow-wrap:anywhere;
+      }
+      .component-preview-table{display:none}
+      .component-preview-mobile{
+        display:grid;
+        gap:8px;
+        width:100%;
+        min-width:0;
+        max-width:100%;
+        margin-top:10px;
+      }
+      .component-preview-card{
+        min-width:0;
+        max-width:100%;
+        border:1px solid var(--line);
+        border-radius:10px;
+        background:#fff;
+        padding:10px;
+      }
+      .component-preview-student{
+        min-width:0;
+        margin-bottom:9px;
+      }
+      .component-preview-student strong{
+        display:block;
+        min-width:0;
+        color:#1d2939;
+        font-size:.88rem;
+        line-height:1.25;
+        overflow-wrap:anywhere;
+        word-break:break-word;
+      }
+      .component-preview-student span{
+        display:block;
+        margin-top:2px;
+        color:#667085;
+        font-size:.74rem;
+        overflow-wrap:anywhere;
+      }
+      .component-preview-metrics{
+        display:grid;
+        grid-template-columns:repeat(3,minmax(0,1fr));
+        gap:6px;
+      }
+      .component-preview-metric{
+        min-width:0;
+        background:#f8fafc;
+        border-radius:8px;
+        padding:7px 6px;
+        text-align:center;
+      }
+      .component-preview-metric span,
+      .component-preview-metric small{
+        display:block;
+        color:#667085;
+        font-size:.64rem;
+        line-height:1.2;
+      }
+      .component-preview-metric b{
+        display:block;
+        color:#1d2939;
+        font-size:.82rem;
+        line-height:1.25;
+        margin:2px 0;
+      }
+      .component-preview-metric.total{
+        background:#eef4ff;
+      }
+      .component-preview-metric.total b{color:#2457d6}
+    }
+    @media(max-width:390px){
+      #view-evaluation>.card{padding-left:8px;padding-right:8px}
+      .lab-component-config{padding:10px}
+      .component-preview-card{padding:9px}
+      .component-preview-metrics{gap:5px}
+      .component-preview-metric{padding:6px 4px}
+      .component-preview-metric span,.component-preview-metric small{font-size:.6rem}
+      .component-preview-metric b{font-size:.78rem}
+    }
+
   </style>
 </head>
 <body>
@@ -418,7 +558,7 @@
     <div class="header-actions">
       <div id="connectionBadge" class="badge">Checking…</div>
       <div id="cloudAuthBadge" class="badge file">Local only</div>
-      <div id="versionBadge" class="badge meta-badge">v0.8 RC14</div>
+      <div id="versionBadge" class="badge meta-badge">v0.8 RC15</div>
       <div id="installStatus" class="badge file meta-badge">Browser mode</div>
       <div id="googleSignInMount" class="no-print google-signin-mount"></div>
       <button id="firebaseSignOutBtn" class="secondary no-print hidden">Sign out</button>
@@ -601,7 +741,7 @@
 
     <section id="view-backup" class="view">
       <div class="grid two">
-        <article class="card"><div class="card-title-row"><div><h2>Automatic sync</h2><p class="muted">Same account, same attendance on every device.</p></div><span class="pill">v0.8.1</span></div><div id="firebaseSyncStatus" class="notice warning">Checking sync…</div><p class="muted small">Works offline. Changes synchronize when the device reconnects.</p></article>
+        <article class="card"><div class="card-title-row"><div><h2>Automatic sync</h2><p class="muted">Same account, same attendance on every device.</p></div><span class="pill">v0.8.2</span></div><div id="firebaseSyncStatus" class="notice warning">Checking sync…</div><p class="muted small">Works offline. Changes synchronize when the device reconnects.</p></article>
         <article class="card"><h2>Recovery</h2><p class="muted">Import previous data or keep a local recovery file.</p><div id="storageStatus" class="notice">Checking offline storage…</div><div id="liveRecoveryStatus" class="notice warning" style="margin-top:10px">Checking for a previous-version recovery snapshot…</div><div id="stagingRecoveryStatus" class="notice warning" style="margin-top:10px">Checking for v0.8 test attendance on this device…</div><div class="button-row" style="justify-content:flex-start;flex-wrap:wrap"><button id="recoverStagingV08Btn" class="primary">Recover v0.8 attendance</button><button id="importLiveDataBtn" class="secondary">Restore pre-v0.8 snapshot</button><button id="persistStorageBtn" class="secondary">Protect offline storage</button><button id="exportBackupBtn" class="secondary">Export backup</button><label class="file-button">Restore JSON backup<input id="restoreBackupFile" type="file" accept="application/json,.json" hidden /></label></div><p class="muted small">Persistent storage reduces the chance that the browser automatically removes local attendance data. It cannot protect against deleting app/site data or losing the device.</p></article>
         <details class="card compact-details"><summary>Install & offline use</summary><div class="details-body"><ol><li>Open once while online.</li><li>Install/Add to Home Screen.</li><li>Take attendance without internet.</li><li>Reconnect later for automatic sync.</li></ol><p class="muted small">Avoid clearing app/site data unless you already have a backup.</p></div></details>
         <details id="cloudSyncCard" class="card compact-details"><summary>Drive recovery <span class="pill">Optional</span></summary><div class="details-body"><p class="muted">Secondary backup only. Automatic device sync uses Firestore.</p><div id="adminGoogleSetup" class="hidden"><label>Admin OAuth Client ID<input id="googleClientId" placeholder="xxxx.apps.googleusercontent.com" /></label><div class="button-row" style="justify-content:flex-start;flex-wrap:wrap;margin-top:10px"><button id="saveGoogleClientBtn" class="secondary">Save admin setup</button></div></div><div class="button-row" style="justify-content:flex-start;flex-wrap:wrap;margin-top:10px"><button id="googleSignInBtn" class="secondary">Connect Drive</button><button id="syncNowBtn" class="secondary">Backup now</button><button id="restoreDriveBtn" class="secondary">Restore current backup</button><button id="restoreStagingDriveBtn" class="secondary">Recover v0.8 Drive backup</button></div><div id="cloudStatus" class="notice warning" style="margin-top:12px">Drive backup is not connected.</div><p id="cloudHelp" class="muted small">Use only for recovery.</p></div></details>
@@ -654,7 +794,7 @@
   const PRE_V08_BACKUP_KEY = 'offlineTeacherAttendance.preV08Backup';
   const UPDATE_BACKUP_KEY = 'offlineTeacherAttendance.updateBackup';
   const UPDATE_BACKUP_META_KEY = 'offlineTeacherAttendance.updateBackupMeta';
-  const APP_VERSION = '0.8.1';
+  const APP_VERSION = '0.8.2';
   const DB_NAME = 'OfflineTeacherAttendanceDB';
   const DB_STORE = 'app';
   const DB_STATE_KEY = 'state';
@@ -1543,7 +1683,20 @@
         const comp=studentLabComponentMarks(course,st.id);
         return `<tr><td>${esc(st.id)}</td><td>${esc(st.name)}</td><td>${comp.reports}/${comp.total}</td><td>${comp.reportMark.toFixed(2)} /${Number(cfg.reportMax)||0}</td><td>${comp.tasks}/${comp.total}</td><td>${comp.taskMark.toFixed(2)} /${Number(cfg.taskMax)||0}</td></tr>`;
       }).join('');
-      preview.innerHTML=`<div class="component-preview-table"><table><thead><tr><th>ID</th><th>Name</th><th>Reports</th><th>Report mark</th><th>Tasks/Tests</th><th>Task/Test mark</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+      const mobileRows=course.students.map(st=>{
+        const comp=studentLabComponentMarks(course,st.id);
+        const totalMark=comp.reportMark+comp.taskMark;
+        const totalMax=(Number(cfg.reportMax)||0)+(Number(cfg.taskMax)||0);
+        return `<div class="component-preview-card">
+          <div class="component-preview-student"><strong>${esc(st.name)}</strong><span>${esc(st.id)}</span></div>
+          <div class="component-preview-metrics">
+            <div class="component-preview-metric"><span>Report</span><b>${comp.reports}/${comp.total}</b><small>${comp.reportMark.toFixed(2)} / ${Number(cfg.reportMax)||0}</small></div>
+            <div class="component-preview-metric"><span>Task/Test</span><b>${comp.tasks}/${comp.total}</b><small>${comp.taskMark.toFixed(2)} / ${Number(cfg.taskMax)||0}</small></div>
+            <div class="component-preview-metric total"><span>Total</span><b>${totalMark.toFixed(2)}</b><small>/ ${totalMax}</small></div>
+          </div>
+        </div>`;
+      }).join('');
+      preview.innerHTML=`<div class="component-preview-table"><table><thead><tr><th>ID</th><th>Name</th><th>Reports</th><th>Report mark</th><th>Tasks/Tests</th><th>Task/Test mark</th></tr></thead><tbody>${rows}</tbody></table></div><div class="component-preview-mobile">${mobileRows}</div>`;
     }
   }
 
