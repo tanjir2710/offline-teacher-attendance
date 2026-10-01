@@ -1557,6 +1557,7 @@
     const evalSel=$('evalSelect');
     if(!course){
       evalSel.innerHTML='<option value="">No evaluations</option>';
+      renderLabComponentConfig(null);
       renderEvaluationList(null);
       renderEvaluation();
       return;
@@ -1568,12 +1569,25 @@
     else if(course.evaluations.length) evalSel.value=course.evaluations[0].id;
     evaluationEditing=false;
     evaluationDraftDirty=false;
+    renderLabComponentConfig(course);
     renderEvaluationList(course);
     renderEvaluation();
   }
 
   $('evalCourseSelect').onchange=renderEvaluationSelectors;
   $('evalSelect').onchange=()=>{ evaluationDraftDirty=false; evaluationEditing=false; renderEvaluation(); };
+  $('saveLabComponentConfigBtn').onclick=()=>{
+    const c=currentEvaluationCourse();
+    if(!c||!isLabCourse(c)) return toast('Choose a lab course first.');
+    c.labMarksConfig ||= {reportMax:15,taskMax:10};
+    c.labMarksConfig.reportMax=Math.max(0,Number($('labReportMax').value)||0);
+    c.labMarksConfig.taskMax=Math.max(0,Number($('labTaskMax').value)||0);
+    c.updatedAt=new Date().toISOString();
+    persist();
+    renderLabComponentConfig(c);
+    renderFinalAverage(c);
+    toast('Daily lab component marks saved.');
+  };
 
   function renderRubricBuilder(){
     const el=$('rubricBuilderRows');
