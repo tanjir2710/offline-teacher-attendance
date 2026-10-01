@@ -542,7 +542,7 @@
   let syncTimer = null;
   let syncInFlight = false;
   let authWatchdog = null;
-  let draft = { courseId:null, date:null, present:new Set(), existing:false, dirty:false, editing:false };
+  let draft = { courseId:null, date:null, present:new Set(), report:new Set(), task:new Set(), existing:false, dirty:false, editing:false };
 
   function preservePreV08Snapshot(){
     try{
@@ -1083,12 +1083,21 @@
     $('attendanceDate').value=date;
     const c=currentCourse(cid);
     if(!c){
-      draft={courseId:null,date:null,present:new Set(),existing:false,dirty:false,editing:false};
+      draft={courseId:null,date:null,present:new Set(),report:new Set(),task:new Set(),existing:false,dirty:false,editing:false};
       renderAttendance();
       return;
     }
     const session=(c.sessions||{})[date];
-    draft={courseId:cid,date,present:new Set(session?.presentIds||[]),existing:!!session,dirty:false,editing:!session};
+    draft={
+      courseId:cid,
+      date,
+      present:new Set(session?.presentIds||[]),
+      report:new Set(session?.labReportIds||[]),
+      task:new Set(session?.labTaskIds||[]),
+      existing:!!session,
+      dirty:false,
+      editing:!session
+    };
     renderAttendance();
   }
   $('attendanceCourseSelect').onchange=loadDraft;
@@ -1099,6 +1108,8 @@
     const session=c?.sessions?.[draft.date];
     if(!c||!session) return;
     draft.present=new Set(session.presentIds||[]);
+    draft.report=new Set(session.labReportIds||[]);
+    draft.task=new Set(session.labTaskIds||[]);
     draft.editing=true;
     draft.dirty=false;
     renderAttendance();
@@ -1108,6 +1119,8 @@
     const session=c?.sessions?.[draft.date];
     if(!session) return loadDraft();
     draft.present=new Set(session.presentIds||[]);
+    draft.report=new Set(session.labReportIds||[]);
+    draft.task=new Set(session.labTaskIds||[]);
     draft.editing=false;
     draft.dirty=false;
     renderAttendance();
@@ -1115,11 +1128,19 @@
   $('markAllBtn').onclick=()=>{
     if(!draft.editing) return;
     const c=currentCourse(draft.courseId); if(!c)return;
-    draft.present=new Set(c.students.map(s=>s.id)); draft.dirty=true; renderAttendance();
+    draft.present=new Set(c.students.map(s=>s.id));
+    draft.dirty=true;
+    renderAttendance();
   };
   $('clearAllBtn').onclick=()=>{
     if(!draft.courseId||!draft.editing)return;
-    draft.present=new Set(); draft.dirty=true; renderAttendance();
+    draft.present=new Set();
+    if(isLabCourse(currentCourse(draft.courseId))){
+      draft.report=new Set();
+      draft.task=new Set();
+    }
+    draft.dirty=true;
+    renderAttendance();
   };
   $('deleteSessionBtn').onclick=()=>{
     const c=currentCourse(draft.courseId);
@@ -1142,7 +1163,12 @@
     c.sessions ||= {};
     const priorRisks=new Map(c.students.map(s=>[s.id,studentRisk(c,s.id)]));
     const now=new Date().toISOString();
-    c.sessions[draft.date]={presentIds:[...draft.present],updatedAt:now};
+    const session={presentIds:[...draft.present],updatedAt:now};
+    if(isLabCourse(c)){
+      session.labReportIds=[...draft.report];
+      session.labTaskIds=[...draft.task];
+    }
+    c.sessions[draft.date]=session;
     c.deletedSessions ||= {};
     delete c.deletedSessions[draft.date];
     c.updatedAt=now;
@@ -1150,6 +1176,7 @@
     draft.existing=true;
     draft.dirty=false;
     draft.editing=false;
+
     const newAlerts=[];
     for(const st of c.students){
       const before=priorRisks.get(st.id), after=studentRisk(c,st.id);
@@ -1178,8 +1205,13 @@
       $('attendanceStatus').innerHTML='';
       return;
     }
+    const lab=isLabCourse(c);
     const n=c.students.length, p=draft.present.size, a=n-p, rate=n?Math.round(p/n*100):0;
-    $('attendanceStatus').innerHTML=metric('Students',n)+metric('Present',p)+metric('Absent',a)+metric('Rate',`${rate}%`);
+    $('attendanceStatus').innerHTML=
+      metric('Students',n)+
+      metric('Present',p)+
+      metric('Absent',a)+
+      metric('Rate',`${rate}%`);
     strip.classList.remove('hidden');
 
     const editActions=$('attendanceEditActions');
@@ -1187,16 +1219,17 @@
     const help=$('saveHelp');
 
     if(draft.existing && !draft.editing){
-      const session=c.sessions?.[draft.date];
+      const session=c.sessions?.[draft.date]||{};
       strip.classList.remove('dirty');
       $('saveMessage').textContent=`Attendance saved · ${fmtDate(draft.date)}`;
-      help.textContent=(session?.updatedAt?`Saved ${formatSavedTime(session.updatedAt)}. `:'')+'Use Update attendance if you need to change this record.';
+      help.textContent=(session.updatedAt?`Saved ${formatSavedTime(session.updatedAt)}. `:'')+'Use Update attendance if you need to change this record.';
       editBtn.classList.remove('hidden');
       saveBtn.classList.add('hidden');
       cancelBtn.classList.add('hidden');
       editActions.classList.add('hidden');
       list.className='saved-attendance-panel';
-      list.innerHTML=`<div class="saved-attendance-icon">✓</div><strong>Attendance is saved</strong><div class="muted small">${p} present · ${a} absent · ${rate}% attendance</div>`;
+      const labSummary=lab?`<div class="saved-lab-summary"><span><strong>${draft.report.size}</strong> reports submitted</span><span><strong>${draft.task.size}</strong> lab tasks completed</span></div>`:'';
+      list.innerHTML=`<div class="saved-attendance-icon">✓</div><strong>Attendance is saved</strong><div class="muted small">${p} present · ${a} absent · ${rate}% attendance</div>${labSummary}`;
       return;
     }
 
@@ -1207,19 +1240,56 @@
     saveBtn.textContent=draft.existing?'Save changes':'Save attendance';
     strip.classList.toggle('dirty',draft.dirty||!draft.existing);
     $('saveMessage').textContent=draft.existing?(draft.dirty?'Editing saved attendance':'Update attendance'):'New class date';
-    help.textContent=draft.existing?'Change the required students, then save.':'Tick present students, then save attendance.';
+    help.textContent=lab
+      ? 'Mark attendance, lab report submission, and lab task completion, then save.'
+      : (draft.existing?'Change the required students, then save.':'Tick present students, then save attendance.');
 
     list.className='attendance-list';
-    list.innerHTML=c.students.map(st=>{
+    const header=lab?`<div class="lab-session-head"><span></span><span>ID</span><span>Name</span><span>Present</span><span>Report</span><span>Lab task</span><span></span></div>`:'';
+    const rows=c.students.map(st=>{
       const risk=draft.existing?calculateWithDraft(c,st.id):studentRisk(c,st.id);
-      const checked=draft.present.has(st.id), flags=[];
+      const checked=draft.present.has(st.id), report=draft.report.has(st.id), task=draft.task.has(st.id), flags=[];
       if(risk.streak>=2) flags.push(`<span class="flag red">${risk.streak} consecutive absences</span>`);
       else if(risk.total>=2) flags.push(`<span class="flag yellow">${risk.total} total absences</span>`);
       else if(risk.total===1) flags.push('<span class="flag">1 absence</span>');
-      return `<label class="student-row ${risk.level}"><span class="check-wrap"><input class="big-check" type="checkbox" data-sid="${esc(st.id)}" ${checked?'checked':''}></span><span class="student-id">${esc(st.id)}</span><span class="student-name">${esc(st.name)}</span><span class="student-flags">${flags.join('')}</span></label>`;
+
+      if(!lab){
+        return `<label class="student-row ${risk.level}"><span class="check-wrap"><input class="big-check" type="checkbox" data-sid="${esc(st.id)}" ${checked?'checked':''}></span><span class="student-id">${esc(st.id)}</span><span class="student-name">${esc(st.name)}</span><span class="student-flags">${flags.join('')}</span></label>`;
+      }
+
+      return `<div class="student-row lab-row ${risk.level}">
+        <span class="check-wrap"><input class="big-check" type="checkbox" data-kind="present" data-sid="${esc(st.id)}" ${checked?'checked':''}></span>
+        <span class="student-id">${esc(st.id)}</span>
+        <span class="student-name">${esc(st.name)}</span>
+        <div class="lab-mobile-checks">
+          <label class="lab-check"><input type="checkbox" data-kind="present-mobile" data-sid="${esc(st.id)}" ${checked?'checked':''}><span>Present</span></label>
+          <label class="lab-check"><input type="checkbox" data-kind="report" data-sid="${esc(st.id)}" ${report?'checked':''}><span>Report</span></label>
+          <label class="lab-check"><input type="checkbox" data-kind="task" data-sid="${esc(st.id)}" ${task?'checked':''}><span>Task</span></label>
+        </div>
+        <label class="lab-check desktop-lab-check"><input type="checkbox" data-kind="report-desktop" data-sid="${esc(st.id)}" ${report?'checked':''}></label>
+        <label class="lab-check desktop-lab-check"><input type="checkbox" data-kind="task-desktop" data-sid="${esc(st.id)}" ${task?'checked':''}></label>
+        <span class="student-flags">${flags.join('')}</span>
+      </div>`;
     }).join('');
-    list.querySelectorAll('input[data-sid]').forEach(ch=>ch.onchange=()=>{
-      if(ch.checked) draft.present.add(ch.dataset.sid); else draft.present.delete(ch.dataset.sid);
+    list.innerHTML=header+rows;
+
+    if(!lab){
+      list.querySelectorAll('input[data-sid]').forEach(ch=>ch.onchange=()=>{
+        if(ch.checked) draft.present.add(ch.dataset.sid); else draft.present.delete(ch.dataset.sid);
+        draft.dirty=true; renderAttendance();
+      });
+      return;
+    }
+
+    list.querySelectorAll('input[data-kind]').forEach(ch=>ch.onchange=()=>{
+      const sid=ch.dataset.sid, kind=ch.dataset.kind;
+      if(kind==='present'||kind==='present-mobile'){
+        if(ch.checked) draft.present.add(sid); else draft.present.delete(sid);
+      }else if(kind==='report'||kind==='report-desktop'){
+        if(ch.checked) draft.report.add(sid); else draft.report.delete(sid);
+      }else if(kind==='task'||kind==='task-desktop'){
+        if(ch.checked) draft.task.add(sid); else draft.task.delete(sid);
+      }
       draft.dirty=true;
       renderAttendance();
     });
