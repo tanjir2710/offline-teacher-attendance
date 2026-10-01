@@ -258,8 +258,8 @@
     .evaluation-average-grid:last-child{border-bottom:0}
     .evaluation-note input{padding:8px}
     .eval-readonly{background:#f8fafc!important;color:#475467}
-    .lab-session-head{display:grid;grid-template-columns:54px minmax(130px,.85fr) minmax(180px,1.3fr) repeat(3,92px) auto;gap:10px;align-items:center;padding:0 6px 7px;color:#667085;font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
-    .student-row.lab-row{grid-template-columns:54px minmax(130px,.85fr) minmax(180px,1.3fr) repeat(3,92px) auto}
+    .lab-session-head{display:grid;grid-template-columns:70px minmax(130px,.85fr) minmax(180px,1.3fr) repeat(2,92px) auto;gap:10px;align-items:center;padding:0 6px 7px;color:#667085;font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
+    .student-row.lab-row{grid-template-columns:70px minmax(130px,.85fr) minmax(180px,1.3fr) repeat(2,92px) auto}
     .lab-check{display:flex;align-items:center;justify-content:center;gap:5px}
     .lab-check span{font-size:.7rem;color:#667085}
     .saved-lab-summary{display:flex;justify-content:center;gap:14px;flex-wrap:wrap;margin-top:8px}
@@ -268,7 +268,7 @@
       .tab{font-size:.64rem}
       .lab-session-head{display:none}
       .student-row.lab-row{display:grid;grid-template-columns:40px 1fr;grid-template-areas:"c id" "c name" "checks checks" "flags flags"}
-      .student-row.lab-row .lab-mobile-checks{grid-area:checks;display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding-left:40px;margin-top:6px}
+      .student-row.lab-row .lab-mobile-checks{grid-area:checks;display:grid;grid-template-columns:repeat(2,1fr);gap:6px;padding-left:40px;margin-top:6px}
       .student-row.lab-row .student-flags{grid-area:flags;padding-left:40px}
       .evaluation-card{align-items:flex-start;flex-direction:column}
       .evaluation-card .evaluation-actions{width:100%}.evaluation-card .evaluation-actions button{flex:1}
@@ -1255,7 +1255,7 @@
       : (draft.existing?'Change the required students, then save.':'Tick present students, then save attendance.');
 
     list.className='attendance-list';
-    const header=lab?`<div class="lab-session-head"><span></span><span>ID</span><span>Name</span><span>Present</span><span>Report</span><span>Lab task</span><span></span></div>`:'';
+    const header=lab?`<div class="lab-session-head"><span>Present</span><span>ID</span><span>Name</span><span>Report</span><span>Lab task</span><span>Alerts</span></div>`:'';
     const rows=c.students.map(st=>{
       const risk=draft.existing?calculateWithDraft(c,st.id):studentRisk(c,st.id);
       const checked=draft.present.has(st.id), report=draft.report.has(st.id), task=draft.task.has(st.id), flags=[];
@@ -1272,9 +1272,8 @@
         <span class="student-id">${esc(st.id)}</span>
         <span class="student-name">${esc(st.name)}</span>
         <div class="lab-mobile-checks">
-          <label class="lab-check"><input type="checkbox" data-kind="present-mobile" data-sid="${esc(st.id)}" ${checked?'checked':''}><span>Present</span></label>
           <label class="lab-check"><input type="checkbox" data-kind="report" data-sid="${esc(st.id)}" ${report?'checked':''}><span>Report</span></label>
-          <label class="lab-check"><input type="checkbox" data-kind="task" data-sid="${esc(st.id)}" ${task?'checked':''}><span>Task</span></label>
+          <label class="lab-check"><input type="checkbox" data-kind="task" data-sid="${esc(st.id)}" ${task?'checked':''}><span>Lab task</span></label>
         </div>
         <label class="lab-check desktop-lab-check"><input type="checkbox" data-kind="report-desktop" data-sid="${esc(st.id)}" ${report?'checked':''}></label>
         <label class="lab-check desktop-lab-check"><input type="checkbox" data-kind="task-desktop" data-sid="${esc(st.id)}" ${task?'checked':''}></label>
@@ -1293,7 +1292,7 @@
 
     list.querySelectorAll('input[data-kind]').forEach(ch=>ch.onchange=()=>{
       const sid=ch.dataset.sid, kind=ch.dataset.kind;
-      if(kind==='present'||kind==='present-mobile'){
+      if(kind==='present'){
         if(ch.checked) draft.present.add(sid); else draft.present.delete(sid);
       }else if(kind==='report'||kind==='report-desktop'){
         if(ch.checked) draft.report.add(sid); else draft.report.delete(sid);
@@ -1690,7 +1689,7 @@
   function renderAll(){
     renderCourses(); refreshSelects(); renderAlerts(); renderEvaluationSelectors();
     if(!$('attendanceDate').value) $('attendanceDate').value=todayISO();
-    if(!draft.courseId || !state.courses.some(c=>c.id===draft.courseId)){ draft.courseId=$('attendanceCourseSelect').value||null; draft.date=$('attendanceDate').value; draft.present=new Set(); draft.existing=false; draft.dirty=false; if(draft.courseId) loadDraft(); else renderAttendance(); }
+    if(!draft.courseId || !state.courses.some(c=>c.id===draft.courseId)){ draft.courseId=$('attendanceCourseSelect').value||null; draft.date=$('attendanceDate').value; draft.present=new Set(); draft.report=new Set(); draft.task=new Set(); draft.existing=false; draft.dirty=false; draft.editing=false; if(draft.courseId) loadDraft(); else renderAttendance(); }
     renderStats(); renderPortalSelectors();
   }
 
