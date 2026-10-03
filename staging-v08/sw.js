@@ -1,4 +1,4 @@
-const CACHE='classroll-staging-v08-16';
+const CACHE='classroll-staging-v08-17';
 const ASSETS=['./','./index.html','./manifest.webmanifest','./icons/icon.svg','./icons/apple-touch-icon.png','./icons/icon-192.png','./icons/icon-512.png','./firebase-config.mjs','./firebase-sync.mjs'];
 
 self.addEventListener('install',event=>{
