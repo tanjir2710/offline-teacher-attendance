@@ -24,7 +24,7 @@ import {
   serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
-const APP_VERSION = '0.8.1';
+const APP_VERSION = '0.8.5';
 const GOOGLE_WEB_CLIENT_ID = '460419019734-lhvkcq795cg41k6cet2mvcnmmq3djcht.apps.googleusercontent.com';
 const DEVICE_KEY = 'offlineTeacherAttendance.production.deviceId.v1';
 
@@ -128,18 +128,25 @@ if (!firebaseConfigured) {
   let publishing = false;
   let lastPublished = '';
   let localDebounce = null;
+  let latestDeviceSnapshot = null;
+  let lastCloudMergeAt = null;
+
+  function setSyncDetails(message='') {
+    const el = $('firebaseSyncDetails');
+    if (el) el.textContent = message || 'Works offline. Changes synchronize when the device reconnects.';
+  }
 
   function currentStateJson() {
     return JSON.stringify(bridge.getState());
   }
 
-  async function publishLocalState() {
-    if (!currentUser || publishing) return;
+  async function publishLocalState({force=false}={}) {
+    if (!currentUser || publishing) return false;
     publishing = true;
     try {
       const state = bridge.getState();
       const json = JSON.stringify(state);
-      if (json === lastPublished) return;
+      if (!force && json === lastPublished) return true;
       const approxBytes = new Blob([json]).size;
       if (approxBytes > 750000) {
         setStatus('Cloud sync paused because this device data is becoming too large for the current RC sync format. Export a backup and contact the administrator.', 'warning');
@@ -157,9 +164,11 @@ if (!firebaseConfigured) {
         {merge:true}
       );
       lastPublished = json;
-      setStatus(navigator.onLine ? 'Automatic sync active · changes are up to date.' : 'Offline · changes are queued and will sync automatically when internet returns.', navigator.onLine ? 'success' : 'warning');
+      setStatus(navigator.onLine ? 'Automatic sync active · device state uploaded.' : 'Offline · changes are queued and will sync automatically when internet returns.', navigator.onLine ? 'success' : 'warning');
+      return true;
     } catch (err) {
       setStatus('Automatic sync error: ' + (err?.message || String(err)), 'warning');
+      return false;
     } finally {
       publishing = false;
     }
@@ -170,32 +179,101 @@ if (!firebaseConfigured) {
     localDebounce = setTimeout(publishLocalState, delay);
   }
 
+  async function applyDeviceSnapshot(snap,{manual=false}={}) {
+    latestDeviceSnapshot = snap;
+    let merged = bridge.getState();
+    let productionDocs = 0;
+    let usableDocs = 0;
+    let skippedDocs = 0;
+
+    for (const d of snap.docs) {
+      try {
+        const data = d.data();
+        if (data?.environment !== 'production') continue;
+        productionDocs++;
+        if (!data?.state || !Array.isArray(data.state.courses)) { skippedDocs++; continue; }
+        merged = bridge.mergeRemote(data.state, {render:false});
+        usableDocs++;
+      } catch (err) {
+        skippedDocs++;
+        console.warn('Skipped malformed device sync document', d.id, err);
+      }
+    }
+
+    const finalState = bridge.mergeRemote(merged, {render:true});
+    const mergedJson = JSON.stringify(finalState);
+    lastCloudMergeAt = new Date();
+
+    if (mergedJson !== lastPublished || manual) {
+      await publishLocalState({force:manual});
+    }
+
+    const pending = snap.metadata.hasPendingWrites;
+    const cacheOnly = snap.metadata.fromCache && !navigator.onLine;
+    if (pending || cacheOnly) {
+      setStatus('Offline/local changes saved · cloud synchronization will finish automatically when online.', 'warning');
+    } else if (skippedDocs) {
+      setStatus('Sync completed with repair · malformed old cloud data was skipped safely.', 'warning');
+    } else {
+      setStatus('Automatic sync active · all available device histories merged.', 'success');
+    }
+
+    const when = lastCloudMergeAt.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+    setSyncDetails(`Cloud merge: ${usableDocs}/${productionDocs || usableDocs} device records · ${when}${skippedDocs ? ' · '+skippedDocs+' malformed record(s) ignored' : ''}`);
+    return {usableDocs,productionDocs,skippedDocs};
+  }
+
   function startDeviceListener(user) {
     if (deviceUnsub) deviceUnsub();
     const devicesRef = collection(db, 'users', user.uid, 'devices');
     deviceUnsub = onSnapshot(
       devicesRef,
       {includeMetadataChanges:true},
-      async snap => {
-        let merged = bridge.getState();
-        for (const d of snap.docs) {
-          const data = d.data();
-          if (data?.environment !== 'production') continue;
-          if (data?.state?.courses) merged = bridge.mergeRemote(data.state, {render:false});
-        }
-        const finalState = bridge.mergeRemote(merged, {render:true});
-        const mergedJson = JSON.stringify(finalState);
-        if (mergedJson !== lastPublished) queuePublish(100);
-        const pending = snap.metadata.hasPendingWrites;
-        const cacheOnly = snap.metadata.fromCache && !navigator.onLine;
-        if (pending || cacheOnly) {
-          setStatus('Offline/local changes saved · cloud synchronization will finish automatically when online.', 'warning');
-        } else {
-          setStatus('Automatic sync active · this account is synchronized across devices.', 'success');
-        }
+      snap => {
+        applyDeviceSnapshot(snap).catch(err => {
+          console.error('Cloud merge failed', err);
+          setStatus('Cloud merge error: ' + (err?.message || String(err)), 'warning');
+          setSyncDetails('Your local attendance is still safe on this device. Use Repair & sync all devices after updating.');
+        });
       },
-      err => setStatus('Cloud listener error: ' + (err?.message || String(err)), 'warning')
+      err => {
+        setStatus('Cloud listener error: ' + (err?.message || String(err)), 'warning');
+        setSyncDetails('Cloud listener is not connected. Local attendance remains available.');
+      }
     );
+  }
+
+  if ($('syncRepairBtn')) {
+    $('syncRepairBtn').onclick = async () => {
+      if (!currentUser) {
+        bridge.notify('Sign in with Google first.');
+        return;
+      }
+      if (!navigator.onLine) {
+        bridge.notify('Internet is required to repair multi-device sync.');
+        return;
+      }
+      try {
+        localStorage.setItem('offlineTeacherAttendance.beforeSyncRepair', JSON.stringify(bridge.getState()));
+        setStatus('Repairing multi-device history…', 'warning');
+        if (latestDeviceSnapshot) {
+          const result = await applyDeviceSnapshot(latestDeviceSnapshot,{manual:true});
+          setStatus('Repair complete · histories merged and republished.', 'success');
+          bridge.notify('Multi-device history repair completed.');
+          const when = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+          setSyncDetails(`Repair merged ${result.usableDocs} device record(s) · ${when}. Open History on your other devices after they update.`);
+        } else {
+          const ok = await publishLocalState({force:true});
+          if (ok) {
+            setStatus('Current device uploaded. Waiting for cloud device list…', 'warning');
+            bridge.notify('Current device uploaded. Keep the app open briefly for cloud merge.');
+          }
+        }
+      } catch (err) {
+        setStatus('Sync repair failed: ' + (err?.message || String(err)), 'warning');
+        bridge.notify('Sync repair failed. Your local attendance was not deleted.');
+      }
+    };
   }
 
   window.addEventListener('attendance-local-change', () => {
@@ -266,10 +344,12 @@ if (!firebaseConfigured) {
     }
     if (currentUser) {
       setStatus('Signed in · starting automatic synchronization…', 'warning');
+      setSyncDetails('Loading attendance histories from your other devices…');
       startDeviceListener(currentUser);
       queuePublish(50);
     } else {
       setStatus('Not signed in. Attendance still works locally on this device.', 'warning');
+      setSyncDetails('Sign in with the same Google account on every device to synchronize histories.');
       renderOfficialGoogleButton();
     }
   });
