@@ -13,13 +13,13 @@ for (const id of [
   'editAttendanceBtn','cancelAttendanceEditBtn','evalCourseSelect','evalSelect','newEvaluationBtn',
   'rubricBuilderRows','saveEvaluationMarksBtn','evaluationStudents','courseType','evaluationList',
   'editEvaluationBtn','closeEvaluationBtn','newFinalLabTestBtn','labReportMax','labTaskMax',
-  'exportEvaluationExcelBtn','exportLabSummaryBtn','recoverStagingV08Btn','restoreStagingDriveBtn'
+  'exportEvaluationExcelBtn','exportLabSummaryBtn','recoverStagingV08Btn','restoreStagingDriveBtn','syncRepairBtn','firebaseSyncDetails'
 ]) {
   if (!html.includes('id="'+id+'"')) fail('Missing required production element #'+id);
 }
 if (!html.includes("const STORAGE_KEY = 'offlineTeacherAttendance.v3'")) fail('Production storage key changed');
 if (!html.includes("const DB_NAME = 'OfflineTeacherAttendanceDB'")) fail('Production IndexedDB name changed');
-if (!html.includes("const APP_VERSION = '0.8.4'")) fail('Production app version missing');
+if (!html.includes("const APP_VERSION = '0.8.5'")) fail('Production app version missing');
 if (!html.includes("const PRE_V08_BACKUP_KEY = 'offlineTeacherAttendance.preV08Backup'")) fail('Pre-v0.8 recovery snapshot missing');
 if (!html.includes('AttendanceAppBridge')) fail('AttendanceAppBridge missing');
 if (!sync.includes("environment: 'production'")) fail('Production Firestore environment marker missing');
@@ -27,7 +27,7 @@ if (!sync.includes("data?.environment !== 'production'")) fail('Production Fires
 if (!config.includes('offline-teacher-attendance.firebaseapp.com')) fail('Firebase config missing');
 if (manifest.name !== 'ClassRoll') fail('Production manifest is not ClassRoll');
 if (!manifest.start_url) fail('Manifest start_url missing');
-if (!sw.includes("classroll-production-v0.8.4")) fail('Production service-worker cache name missing');
+if (!sw.includes("classroll-production-v0.8.5")) fail('Production service-worker cache name missing');
 if (html.includes('>STAGING<') || html.includes('STAGING v0.8')) fail('Visible staging branding remains in production');
 
 if (!html.includes('saved-attendance-roster')) fail('Saved attendance P/A review missing');
@@ -52,3 +52,10 @@ console.log('Production smoke checks passed.');
 if (!html.includes("STAGING_V08_STORAGE_KEY")) fail('Local v0.8 recovery key missing');
 if (!html.includes("STAGING_V08_DRIVE_FILE_NAME")) fail('v0.8 Drive recovery filename missing');
 if (!html.includes("readNamedDriveState")) fail('Named Drive recovery reader missing');
+
+if (!html.includes('function courseIdentityKey')) fail('Logical course identity merge missing');
+if (!html.includes('x.courses=x.courses.filter')) fail('Malformed/null course filtering missing');
+if (!html.includes('function mergeStudents')) fail('Cross-device roster merge missing');
+if (!sync.includes('applyDeviceSnapshot')) fail('Robust device snapshot merge missing');
+if (!sync.includes('beforeSyncRepair')) fail('Pre-repair safety snapshot missing');
+if (!sync.includes("const APP_VERSION = '0.8.5'")) fail('Firebase sync module version mismatch');
