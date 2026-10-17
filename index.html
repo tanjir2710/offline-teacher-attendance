@@ -805,7 +805,7 @@
 
     <section id="view-backup" class="view">
       <div class="grid two">
-        <article class="card"><div class="card-title-row"><div><h2>Automatic sync</h2><p class="muted">Same account, same attendance on every device.</p></div><span class="pill">v0.8.4</span></div><div id="firebaseSyncStatus" class="notice warning">Checking sync…</div><p class="muted small">Works offline. Changes synchronize when the device reconnects.</p></article>
+        <article class="card"><div class="card-title-row"><div><h2>Automatic sync</h2><p class="muted">Same account, same attendance on every device.</p></div><span class="pill">v0.8.5</span></div><div id="firebaseSyncStatus" class="notice warning">Checking sync…</div><div class="button-row" style="justify-content:flex-start;flex-wrap:wrap;margin-top:10px"><button id="syncRepairBtn" class="secondary">Repair & sync all devices</button></div><p id="firebaseSyncDetails" class="muted small">Works offline. Changes synchronize when the device reconnects.</p></article>
         <article class="card"><h2>Recovery</h2><p class="muted">Import previous data or keep a local recovery file.</p><div id="storageStatus" class="notice">Checking offline storage…</div><div id="liveRecoveryStatus" class="notice warning" style="margin-top:10px">Checking for a previous-version recovery snapshot…</div><div id="stagingRecoveryStatus" class="notice warning" style="margin-top:10px">Checking for v0.8 test attendance on this device…</div><div class="button-row" style="justify-content:flex-start;flex-wrap:wrap"><button id="recoverStagingV08Btn" class="primary">Recover v0.8 attendance</button><button id="importLiveDataBtn" class="secondary">Restore pre-v0.8 snapshot</button><button id="persistStorageBtn" class="secondary">Protect offline storage</button><button id="exportBackupBtn" class="secondary">Export backup</button><label class="file-button">Restore JSON backup<input id="restoreBackupFile" type="file" accept="application/json,.json" hidden /></label></div><p class="muted small">Persistent storage reduces the chance that the browser automatically removes local attendance data. It cannot protect against deleting app/site data or losing the device.</p></article>
         <details class="card compact-details"><summary>Install & offline use</summary><div class="details-body"><ol><li>Open once while online.</li><li>Install/Add to Home Screen.</li><li>Take attendance without internet.</li><li>Reconnect later for automatic sync.</li></ol><p class="muted small">Avoid clearing app/site data unless you already have a backup.</p></div></details>
         <details id="cloudSyncCard" class="card compact-details"><summary>Drive recovery <span class="pill">Optional</span></summary><div class="details-body"><p class="muted">Secondary backup only. Automatic device sync uses Firestore.</p><div id="adminGoogleSetup" class="hidden"><label>Admin OAuth Client ID<input id="googleClientId" placeholder="xxxx.apps.googleusercontent.com" /></label><div class="button-row" style="justify-content:flex-start;flex-wrap:wrap;margin-top:10px"><button id="saveGoogleClientBtn" class="secondary">Save admin setup</button></div></div><div class="button-row" style="justify-content:flex-start;flex-wrap:wrap;margin-top:10px"><button id="googleSignInBtn" class="secondary">Connect Drive</button><button id="syncNowBtn" class="secondary">Backup now</button><button id="restoreDriveBtn" class="secondary">Restore current backup</button><button id="restoreStagingDriveBtn" class="secondary">Recover v0.8 Drive backup</button></div><div id="cloudStatus" class="notice warning" style="margin-top:12px">Drive backup is not connected.</div><p id="cloudHelp" class="muted small">Use only for recovery.</p></div></details>
@@ -858,7 +858,7 @@
   const PRE_V08_BACKUP_KEY = 'offlineTeacherAttendance.preV08Backup';
   const UPDATE_BACKUP_KEY = 'offlineTeacherAttendance.updateBackup';
   const UPDATE_BACKUP_META_KEY = 'offlineTeacherAttendance.updateBackupMeta';
-  const APP_VERSION = '0.8.4';
+  const APP_VERSION = '0.8.5';
   const DB_NAME = 'OfflineTeacherAttendanceDB';
   const DB_STORE = 'app';
   const DB_STATE_KEY = 'state';
@@ -1037,28 +1037,76 @@
     if(course.courseType) return course.courseType==='lab';
     return /\blab\b/i.test(course.courseName||'');
   }
+  function normalizeCourseText(v){ return String(v??'').trim().toLowerCase().replace(/\s+/g,' '); }
+  function courseIdentityKey(course){
+    if(!course || typeof course!=='object') return '';
+    const section=normalizeCourseText(course.section);
+    const code=normalizeCourseText(course.courseCode);
+    if(section && code) return section+'|'+code;
+    const name=normalizeCourseText(course.courseName);
+    if(section && name) return section+'|name:'+name;
+    return course.id ? 'id:'+String(course.id) : '';
+  }
+  function deterministicLegacyCourseId(course,index=0){
+    const key=courseIdentityKey(course);
+    return key ? 'legacy:'+key.replace(/[^a-z0-9|:_-]+/g,'-') : 'legacy:course:'+index;
+  }
+  function normalizeStringArray(v){
+    if(!Array.isArray(v)) return [];
+    return [...new Set(v.filter(x=>x!==null&&x!==undefined).map(x=>String(x)))];
+  }
   function normalizeSyncState(input){
     const x=(input && typeof input==='object')?deepCopy(input):{version:4,courses:[]};
     if(!Array.isArray(x.courses)) x.courses=[];
-    x.deletedCourses ||= {};
-    for(const c of x.courses){
-      c.courseType ||= /\blab\b/i.test(c.courseName||'') ? 'lab' : 'theory';
-      c.sessions ||= {};
-      c.deletedSessions ||= {};
-      c.evaluations ||= [];
-      c.deletedEvaluations ||= {};
-      c.labMarksConfig ||= {reportMax:15,taskMax:10};
+    x.courses=x.courses.filter(c=>c && typeof c==='object' && !Array.isArray(c));
+    x.deletedCourses=(x.deletedCourses && typeof x.deletedCourses==='object' && !Array.isArray(x.deletedCourses))?x.deletedCourses:{};
+
+    for(let ci=0;ci<x.courses.length;ci++){
+      const c=x.courses[ci];
+      c.id ||= deterministicLegacyCourseId(c,ci);
+      c.section=String(c.section??'').trim();
+      c.courseCode=String(c.courseCode??'').trim();
+      c.courseName=String(c.courseName??'').trim();
+      c.courseType=(c.courseType==='lab'||c.courseType==='theory')?c.courseType:(/\blab\b/i.test(c.courseName||'')?'lab':'theory');
+      c.alertThreshold=Math.max(1,Number(c.alertThreshold)||3);
+      c.students=Array.isArray(c.students)?c.students.filter(st=>st&&typeof st==='object'&&!Array.isArray(st)&&st.id!==null&&st.id!==undefined).map(st=>({id:String(st.id),name:String(st.name??'').trim()})):[];
+      const seenStudents=new Set();
+      c.students=c.students.filter(st=>{ if(seenStudents.has(st.id)) return false; seenStudents.add(st.id); return true; });
+
+      c.sessions=(c.sessions && typeof c.sessions==='object' && !Array.isArray(c.sessions))?c.sessions:{};
+      for(const [date,raw] of Object.entries(c.sessions)){
+        if(!raw || typeof raw!=='object' || Array.isArray(raw)){ delete c.sessions[date]; continue; }
+        raw.presentIds=normalizeStringArray(raw.presentIds);
+        raw.labReportIds=normalizeStringArray(raw.labReportIds);
+        raw.labTaskIds=normalizeStringArray(raw.labTaskIds);
+        raw.updatedAt ||= c.updatedAt || c.createdAt || new Date(0).toISOString();
+      }
+
+      c.deletedSessions=(c.deletedSessions && typeof c.deletedSessions==='object' && !Array.isArray(c.deletedSessions))?c.deletedSessions:{};
+      c.evaluations=Array.isArray(c.evaluations)?c.evaluations.filter(ev=>ev&&typeof ev==='object'&&!Array.isArray(ev)):[];
+      c.deletedEvaluations=(c.deletedEvaluations && typeof c.deletedEvaluations==='object' && !Array.isArray(c.deletedEvaluations))?c.deletedEvaluations:{};
+      c.labMarksConfig=(c.labMarksConfig && typeof c.labMarksConfig==='object')?c.labMarksConfig:{reportMax:15,taskMax:10};
       c.labMarksConfig.reportMax=Math.max(0,Number(c.labMarksConfig.reportMax)||0);
       c.labMarksConfig.taskMax=Math.max(0,Number(c.labMarksConfig.taskMax)||0);
-      for(const ev of c.evaluations){
+
+      for(let ei=0;ei<c.evaluations.length;ei++){
+        const ev=c.evaluations[ei];
+        ev.id ||= 'legacy-eval:'+c.id+':'+ei;
         ev.type ||= 'continuous';
-        ev.rubric ||= [];
-        for(const r of ev.rubric) r.outcome ||= '';
-        ev.scores ||= {};
-        ev.notes ||= {};
-        ev.updatedAt ||= ev.createdAt || c.updatedAt || c.createdAt;
+        ev.rubric=Array.isArray(ev.rubric)?ev.rubric.filter(r=>r&&typeof r==='object'&&!Array.isArray(r)):[];
+        for(let ri=0;ri<ev.rubric.length;ri++){
+          const r=ev.rubric[ri];
+          r.id ||= 'legacy-rubric:'+ev.id+':'+ri;
+          r.label=String(r.label??'').trim();
+          r.outcome=String(r.outcome??'').trim();
+          r.maxMarks=Math.max(0,Number(r.maxMarks)||0);
+        }
+        ev.scores=(ev.scores && typeof ev.scores==='object' && !Array.isArray(ev.scores))?ev.scores:{};
+        ev.notes=(ev.notes && typeof ev.notes==='object' && !Array.isArray(ev.notes))?ev.notes:{};
+        ev.updatedAt ||= ev.createdAt || c.updatedAt || c.createdAt || new Date(0).toISOString();
         if(!('finalizedAt' in ev)) ev.finalizedAt=Object.keys(ev.scores||{}).length?ev.updatedAt:null;
       }
+
       const sessionTimes=Object.values(c.sessions).map(v=>v?.updatedAt);
       const deletedTimes=Object.values(c.deletedSessions);
       const evaluationTimes=c.evaluations.map(v=>v?.updatedAt);
@@ -1077,24 +1125,43 @@
     }
     return out;
   }
+  function mergeStudents(a=[],b=[],preferred=[]){
+    const out=[], seen=new Set();
+    const push=(st)=>{ if(!st||st.id===null||st.id===undefined) return; const id=String(st.id); if(seen.has(id)) return; seen.add(id); out.push({id,name:String(st.name??'').trim()}); };
+    for(const st of preferred||[]) push(st);
+    for(const st of a||[]) push(st);
+    for(const st of b||[]) push(st);
+    return out;
+  }
+  function canonicalCourseId(a,b){
+    const ids=[a?.id,b?.id].filter(Boolean).map(String).sort();
+    return ids[0] || deterministicLegacyCourseId(a||b||{},0);
+  }
   function mergeCourse(localCourse,remoteCourse){
     if(!localCourse) return normalizeSyncState({courses:[remoteCourse]}).courses[0];
     if(!remoteCourse) return normalizeSyncState({courses:[localCourse]}).courses[0];
-    const lc=deepCopy(localCourse), rc=deepCopy(remoteCourse);
-    lc.sessions ||= {}; rc.sessions ||= {}; lc.deletedSessions ||= {}; rc.deletedSessions ||= {};
+    const lc=normalizeSyncState({courses:[localCourse]}).courses[0];
+    const rc=normalizeSyncState({courses:[remoteCourse]}).courses[0];
+    if(!lc) return rc||null;
+    if(!rc) return lc||null;
+
     const base=timeValue(lc.updatedAt||lc.createdAt)>=timeValue(rc.updatedAt||rc.createdAt)?lc:rc;
     const out={...deepCopy(base),sessions:{},deletedSessions:mergeTimestampMaps(lc.deletedSessions,rc.deletedSessions),evaluations:[],deletedEvaluations:mergeTimestampMaps(lc.deletedEvaluations,rc.deletedEvaluations)};
-    const dates=new Set([...Object.keys(lc.sessions),...Object.keys(rc.sessions),...Object.keys(out.deletedSessions)]);
+    out.id=canonicalCourseId(lc,rc);
+    out.students=mergeStudents(lc.students,rc.students,base.students);
+
+    const dates=new Set([...Object.keys(lc.sessions||{}),...Object.keys(rc.sessions||{}),...Object.keys(out.deletedSessions||{})]);
     for(const d of dates){
-      const ls=lc.sessions[d], rs=rc.sessions[d], del=out.deletedSessions[d];
+      const ls=lc.sessions?.[d], rs=rc.sessions?.[d], del=out.deletedSessions?.[d];
       let chosen=null;
       if(ls && rs) chosen=timeValue(ls.updatedAt)>=timeValue(rs.updatedAt)?ls:rs;
       else chosen=ls||rs||null;
       if(chosen && timeValue(del)<timeValue(chosen.updatedAt)) out.sessions[d]=deepCopy(chosen);
     }
+
     const le=new Map((lc.evaluations||[]).map(v=>[v.id,v])), re=new Map((rc.evaluations||[]).map(v=>[v.id,v]));
-    for(const id of new Set([...le.keys(),...re.keys(),...Object.keys(out.deletedEvaluations)])){
-      const a=le.get(id), b=re.get(id), del=out.deletedEvaluations[id];
+    for(const id of new Set([...le.keys(),...re.keys(),...Object.keys(out.deletedEvaluations||{})])){
+      const a=le.get(id), b=re.get(id), del=out.deletedEvaluations?.[id];
       const chosen=a&&b?(timeValue(a.updatedAt)>=timeValue(b.updatedAt)?a:b):(a||b);
       if(chosen && timeValue(del)<timeValue(chosen.updatedAt)) out.evaluations.push(deepCopy(chosen));
     }
@@ -1111,14 +1178,35 @@
   function mergeStates(localState,remoteState){
     const a=normalizeSyncState(localState), b=normalizeSyncState(remoteState);
     const deletedCourses=mergeTimestampMaps(a.deletedCourses,b.deletedCourses);
-    const amap=new Map(a.courses.map(c=>[c.id,c])), bmap=new Map(b.courses.map(c=>[c.id,c]));
+
+    // First collect by logical identity (section + course code), not only by random device-local ID.
+    const groups=new Map();
+    const addCourse=(course,source)=>{
+      if(!course) return;
+      const key=courseIdentityKey(course) || ('id:'+String(course.id));
+      if(!groups.has(key)) groups.set(key,{local:[],remote:[]});
+      groups.get(key)[source].push(course);
+    };
+    for(const c of a.courses) addCourse(c,'local');
+    for(const c of b.courses) addCourse(c,'remote');
+
     const courses=[];
-    for(const id of new Set([...amap.keys(),...bmap.keys(),...Object.keys(deletedCourses)])){
-      const merged=mergeCourse(amap.get(id),bmap.get(id));
+    for(const group of groups.values()){
+      let merged=null;
+      for(const c of [...group.local,...group.remote]) merged=merged?mergeCourse(merged,c):deepCopy(c);
       if(!merged) continue;
-      if(timeValue(deletedCourses[id])>=timeValue(merged.updatedAt)) continue;
+
+      // Respect a deletion only when it targets the canonical course and is newer.
+      const relatedIds=[...group.local,...group.remote].map(c=>String(c.id||'')).filter(Boolean);
+      const newestDelete=isoMax(...relatedIds.map(id=>deletedCourses[id]));
+      if(timeValue(newestDelete)>=timeValue(merged.updatedAt)) continue;
+
+      // Collapse aliases to one deterministic ID so all devices converge.
+      const ids=relatedIds.sort();
+      if(ids.length) merged.id=ids[0];
       courses.push(merged);
     }
+
     courses.sort((x,y)=>(x.section||'').localeCompare(y.section||'')||(x.courseCode||'').localeCompare(y.courseCode||''));
     return {
       version:4,
