@@ -1,5 +1,5 @@
-const CACHE='classroll-production-v0.8.5';
-const ASSETS=['./','./index.html','./manifest.webmanifest','./icons/icon.svg','./icons/apple-touch-icon.png','./icons/icon-192.png','./icons/icon-512.png','./firebase-config.mjs','./firebase-sync.mjs'];
+const CACHE='classroll-production-v0.9.0';
+const ASSETS=['./','./index.html','./manifest.webmanifest','./icons/icon.svg','./icons/apple-touch-icon.png','./icons/icon-192.png','./icons/icon-512.png','./firebase-config.mjs','./firebase-sync.mjs','./exam-duty/app.mjs','./exam-duty/core.mjs','./exam-duty/style.css','./exam-duty/roster.json','./portal-helper/app.mjs','./portal-helper/core.mjs'];
 
 self.addEventListener('install',event=>{
   // Do not skip waiting automatically. The current app will detect this
@@ -23,7 +23,7 @@ self.addEventListener('fetch',event=>{
   if(event.request.method!=='GET') return;
   const url=new URL(event.request.url);
 
-  if(event.request.mode==='navigate'){
+  if(event.request.mode==='navigate' && !url.pathname.includes('/portal-helper/') && !url.pathname.includes('/services/')){
     event.respondWith(
       fetch(event.request)
         .then(response=>{
@@ -49,3 +49,4 @@ self.addEventListener('fetch',event=>{
     );
   }
 });
+

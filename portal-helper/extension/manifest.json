@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "ClassRoll DIU Portal Helper",
+  "description": "Prepare and review your saved ClassRoll attendance on DIU's teacher portal after you sign in directly.",
+  "version": "0.1.0",
+  "minimum_chrome_version": "120",
+  "permissions": ["activeTab", "scripting", "storage", "alarms"],
+  "background": {"service_worker": "background.mjs", "type": "module"},
+  "action": {"default_popup": "popup.html", "default_title": "ClassRoll DIU Portal Helper"},
+  "content_scripts": [{"matches": ["https://tanjir2710.github.io/offline-teacher-attendance/*"], "js": ["bridge.js"], "run_at": "document_idle"}]
+}

@@ -607,6 +607,7 @@
     }
 
   </style>
+<style>.history-mobile{display:none}@media(max-width:800px){.tabs>[data-view="statistics"]{display:none}.history-mobile{display:block}.tabs{grid-template-columns:repeat(6,minmax(0,1fr))}.tabs>[data-view="exam-duty"]{white-space:normal;font-size:.62rem}}</style>
 </head>
 <body>
 <div class="shell">
@@ -623,7 +624,7 @@
     <div class="header-actions">
       <div id="connectionBadge" class="badge">Checking…</div>
       <div id="cloudAuthBadge" class="badge file">Local only</div>
-      <div id="versionBadge" class="badge meta-badge">v0.8 RC15</div>
+      <div id="versionBadge" class="badge meta-badge">v0.9.0</div>
       <div id="installStatus" class="badge file meta-badge">Browser mode</div>
       <div id="googleSignInMount" class="no-print google-signin-mount"></div>
       <button id="firebaseSignOutBtn" class="secondary no-print hidden">Sign out</button>
@@ -644,20 +645,25 @@
     </div>
   </div>
 
+  <link rel="stylesheet" href="./exam-duty/style.css">
   <nav class="tabs no-print" aria-label="Main navigation">
     <button class="tab active" data-view="courses">Courses</button>
     <button class="tab" data-view="attendance">Attendance</button>
     <button class="tab" data-view="evaluation">Evaluation</button>
     <button class="tab" data-view="statistics">History</button>
+    <button class="tab" data-view="exam-duty">Exam Duty</button>
     <button class="tab" data-view="alerts">Alerts <span id="alertNavCount" class="nav-count">0</span></button>
     <button id="moreMenuBtn" class="tab more-tab" type="button" aria-expanded="false">More</button>
     <div id="moreMenu" class="more-menu hidden">
+      <button class="more-item" data-more-view="portal">DIU Portal Helper</button>
+      <button class="more-item history-mobile" data-more-view="statistics">Attendance history</button>
       <button class="more-item" data-more-view="backup">Sync & Backup</button>
       <button class="more-item" data-more-view="feedback">Feedback</button>
     </div>
   </nav>
 
   <main>
+    <section id="view-exam-duty" class="view"><article class="card"><div id="examDutyRoot">Loading exam-duty roster…</div></article></section>
     <section id="view-courses" class="view active">
       <div class="grid two">
         <article class="card create-course-card">
@@ -805,7 +811,7 @@
 
     <section id="view-backup" class="view">
       <div class="grid two">
-        <article class="card"><div class="card-title-row"><div><h2>Automatic sync</h2><p class="muted">Same account, same attendance on every device.</p></div><span class="pill">v0.8.5</span></div><div id="firebaseSyncStatus" class="notice warning">Checking sync…</div><div class="button-row" style="justify-content:flex-start;flex-wrap:wrap;margin-top:10px"><button id="syncRepairBtn" class="secondary">Repair & sync all devices</button></div><p id="firebaseSyncDetails" class="muted small">Works offline. Changes synchronize when the device reconnects.</p></article>
+        <article class="card"><div class="card-title-row"><div><h2>Automatic sync</h2><p class="muted">Same account, same attendance on every device.</p></div><span class="pill">v0.9.0</span></div><div id="firebaseSyncStatus" class="notice warning">Checking sync…</div><div class="button-row" style="justify-content:flex-start;flex-wrap:wrap;margin-top:10px"><button id="syncRepairBtn" class="secondary">Repair & sync all devices</button></div><p id="firebaseSyncDetails" class="muted small">Works offline. Changes synchronize when the device reconnects.</p></article>
         <article class="card"><h2>Recovery</h2><p class="muted">Import previous data or keep a local recovery file.</p><div id="storageStatus" class="notice">Checking offline storage…</div><div id="liveRecoveryStatus" class="notice warning" style="margin-top:10px">Checking for a previous-version recovery snapshot…</div><div id="stagingRecoveryStatus" class="notice warning" style="margin-top:10px">Checking for v0.8 test attendance on this device…</div><div class="button-row" style="justify-content:flex-start;flex-wrap:wrap"><button id="recoverStagingV08Btn" class="primary">Recover v0.8 attendance</button><button id="importLiveDataBtn" class="secondary">Restore pre-v0.8 snapshot</button><button id="persistStorageBtn" class="secondary">Protect offline storage</button><button id="exportBackupBtn" class="secondary">Export backup</button><label class="file-button">Restore JSON backup<input id="restoreBackupFile" type="file" accept="application/json,.json" hidden /></label></div><p class="muted small">Persistent storage reduces the chance that the browser automatically removes local attendance data. It cannot protect against deleting app/site data or losing the device.</p></article>
         <details class="card compact-details"><summary>Install & offline use</summary><div class="details-body"><ol><li>Open once while online.</li><li>Install/Add to Home Screen.</li><li>Take attendance without internet.</li><li>Reconnect later for automatic sync.</li></ol><p class="muted small">Avoid clearing app/site data unless you already have a backup.</p></div></details>
         <details id="cloudSyncCard" class="card compact-details"><summary>Drive recovery <span class="pill">Optional</span></summary><div class="details-body"><p class="muted">Secondary backup only. Automatic device sync uses Firestore.</p><div id="adminGoogleSetup" class="hidden"><label>Admin OAuth Client ID<input id="googleClientId" placeholder="xxxx.apps.googleusercontent.com" /></label><div class="button-row" style="justify-content:flex-start;flex-wrap:wrap;margin-top:10px"><button id="saveGoogleClientBtn" class="secondary">Save admin setup</button></div></div><div class="button-row" style="justify-content:flex-start;flex-wrap:wrap;margin-top:10px"><button id="googleSignInBtn" class="secondary">Connect Drive</button><button id="syncNowBtn" class="secondary">Backup now</button><button id="restoreDriveBtn" class="secondary">Restore current backup</button><button id="restoreStagingDriveBtn" class="secondary">Recover v0.8 Drive backup</button></div><div id="cloudStatus" class="notice warning" style="margin-top:12px">Drive backup is not connected.</div><p id="cloudHelp" class="muted small">Use only for recovery.</p></div></details>
@@ -858,7 +864,7 @@
   const PRE_V08_BACKUP_KEY = 'offlineTeacherAttendance.preV08Backup';
   const UPDATE_BACKUP_KEY = 'offlineTeacherAttendance.updateBackup';
   const UPDATE_BACKUP_META_KEY = 'offlineTeacherAttendance.updateBackupMeta';
-  const APP_VERSION = '0.8.5';
+  const APP_VERSION = '0.9.0';
   const DB_NAME = 'OfflineTeacherAttendanceDB';
   const DB_STORE = 'app';
   const DB_STATE_KEY = 'state';
@@ -1434,7 +1440,7 @@
   function switchView(name){
     document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===`view-${name}`));
     document.querySelectorAll('.tab[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===name));
-    const secondary=['portal','backup','feedback'].includes(name);
+    const secondary=['portal','backup','feedback'].includes(name)||(name==='statistics'&&matchMedia('(max-width:800px)').matches);
     $('moreMenuBtn')?.classList.toggle('active',secondary);
     $('moreMenu')?.classList.add('hidden');
     $('moreMenuBtn')?.setAttribute('aria-expanded','false');
@@ -2568,5 +2574,7 @@ ${body}</Workbook>`;
 })();
 </script>
 <script type="module" src="./firebase-sync.mjs"></script>
+<script type="module" src="./exam-duty/app.mjs"></script>
+<script type="module" src="./portal-helper/app.mjs"></script>
 </body>
 </html>

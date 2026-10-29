@@ -29,9 +29,19 @@ jobs:
       - name: Run production smoke checks
         if: github.ref_name == 'main'
         run: node tests/production-smoke-check.mjs
+      - name: Check exam-duty and portal-helper modules
+        if: github.ref_name == 'main' || github.event_name == 'pull_request'
+        run: |
+          node --check exam-duty/app.mjs
+          node --check portal-helper/app.mjs
+          node --check portal-helper/extension/popup.mjs
+          node --check portal-helper/extension/background.mjs
+          node --check portal-helper/extension/portal-adapter.mjs
+          node tests/exam-portal-check.mjs
       - name: Check staging Firebase module syntax
         if: github.ref_name == 'main'
         run: node --check staging-v08/firebase-sync.mjs
       - name: Run staging smoke checks
         if: github.ref_name == 'main'
         run: node tests/staging-smoke-check.mjs
+

@@ -24,7 +24,7 @@ import {
   serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
-const APP_VERSION = '0.8.5';
+const APP_VERSION = '0.9.0';
 const GOOGLE_WEB_CLIENT_ID = '460419019734-lhvkcq795cg41k6cet2mvcnmmq3djcht.apps.googleusercontent.com';
 const DEVICE_KEY = 'offlineTeacherAttendance.production.deviceId.v1';
 
@@ -393,3 +393,4 @@ if (!firebaseConfigured) {
 
   window.dispatchEvent(new CustomEvent('attendance-cloud-ready', {detail:{configured:true}}));
 }
+

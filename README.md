@@ -68,3 +68,13 @@ The app is designed as **offline-first**:
 Google Drive backup currently uses short-lived browser OAuth access tokens. This means the teacher may need to tap **Connect Google Drive** again after reopening the app or after the Google session expires. Fully silent long-term background sync would require a backend/service architecture with refresh-token handling.
 
 See [GOOGLE_DRIVE_SETUP.md](GOOGLE_DRIVE_SETUP.md) for the one-time Google Cloud configuration.
+
+
+
+## v0.9.0 — Exam Duty and DIU Portal Helper
+
+**Exam Duty** is now part of ClassRoll's main navigation: imported teacher profiles, ANX1 labels, day/slot lookup, 40-minute calendar alarms, whole-day roster-free search, and shared duty-swap screens. The shared duty service keeps its existing private audience; public-app sign-in and swaps need the owner to enable teacher access. See [Exam Duty setup](exam-duty/README.md).
+
+**More → DIU Portal Helper** prepares a saved attendance batch and hands it to an optional desktop Chrome/Edge extension. Teachers enter DIU ID/password/OTP directly in DIU; the helper checks exact student IDs, fills recognizable P/A controls, and requires teacher review before a final submit click. Daily portal opening is configurable in the extension. Live DIU form mapping and submission success detection remain unverified because the portal blocked development-browser inspection. See [desktop helper status and instructions](portal-helper/README.md).
+
+Existing attendance stores and Firebase sync paths are unchanged. New features use separate keys. No real student records, DIU passwords, OTPs, or live service secrets are included in this repository.
