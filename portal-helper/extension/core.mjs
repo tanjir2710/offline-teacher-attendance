@@ -5,7 +5,7 @@ export function validateJob(raw){
  if(!course||typeof course.code!=='string'||!course.code.trim()||typeof course.section!=='string'||!course.section.trim())throw Error('Course code and section are required.');
  if(!/^\d{4}-\d{2}-\d{2}$/.test(raw.date)||new Date(raw.date+'T00:00:00Z').toISOString().slice(0,10)!==raw.date)throw Error('Invalid attendance date.');
  if(!Array.isArray(raw.students)||!raw.students.length||raw.students.length>500)throw Error('The roster must contain 1–500 students.');
- const ids=new Set();const students=raw.students.map(s=>{const id=String(s.id||'').trim();if(!/^[A-Za-z0-9-]{3,40}$/.test(id)||ids.has(id))throw Error('Student IDs must be valid and unique.');ids.add(id);if(typeof s.present!=='boolean')throw Error('Every student must have an explicit present/absent value.');return {id,present:s.present}}).sort((a,b)=>a.id.localeCompare(b.id));
+ const ids=new Set();const students=raw.students.map(s=>{const id=String(s.id||'').trim();if(!/^[A-Za-z0-9-]{3,40}$/.test(id)||ids.has(id.toUpperCase()))throw Error('Student IDs must be valid and unique.');ids.add(id.toUpperCase());if(typeof s.present!=='boolean')throw Error('Every student must have an explicit present/absent value.');return {id,present:s.present}}).sort((a,b)=>a.id.localeCompare(b.id));
  const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Dhaka'}).format(new Date());if(raw.date>today)throw Error('Future attendance cannot be submitted.');
  return{format:'classroll-diu-attendance',version:1,date:raw.date,course:{code:course.code.trim().slice(0,80),section:course.section.trim().slice(0,80),name:String(course.name||'').slice(0,180)},students};
 }

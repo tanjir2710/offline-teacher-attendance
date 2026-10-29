@@ -71,7 +71,7 @@ See [GOOGLE_DRIVE_SETUP.md](GOOGLE_DRIVE_SETUP.md) for the one-time Google Cloud
 
 
 
-## v0.9.0 — Exam Duty and DIU Portal Helper
+## v0.9.1 — Exam Duty and DIU Portal Helper
 
 **Exam Duty** is now part of ClassRoll's main navigation: imported teacher profiles, ANX1 labels, day/slot lookup, 40-minute calendar alarms, whole-day roster-free search, and shared duty-swap screens. The shared duty service keeps its existing private audience; public-app sign-in and swaps need the owner to enable teacher access. See [Exam Duty setup](exam-duty/README.md).
 

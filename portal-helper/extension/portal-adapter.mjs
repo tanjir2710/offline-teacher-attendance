@@ -6,7 +6,7 @@ export async function attendancePage(job,action='inspect',expectedContext=null){
  const visible=el=>!!(el.getClientRects().length)&&!el.hidden;
  if(document.querySelector('input[type=password],input[autocomplete="one-time-code"]'))throw Error('Complete DIU sign-in yourself before using the helper.');
  const norm=s=>String(s||'').replace(/\s+/g,' ').trim().toLowerCase();
- const semantic=s=>{s=norm(s);return ['present','p','yes','y'].includes(s)?true:['absent','a','no','n'].includes(s)?false:null};
+ const semantic=s=>{s=norm(s);return ['present','p'].includes(s)?true:['absent','a'].includes(s)?false:null};
  const label=input=>{
   const labels=[...(input.labels||[])].map(l=>l.textContent).join(' ');const aria=input.getAttribute('aria-label');if(aria)return aria;if(labels)return labels;
   const cell=input.closest('td'),table=input.closest('table');if(cell&&table){const head=table.querySelector('thead tr')||table.querySelector('tr');return head?.children[cell.cellIndex]?.textContent||''}return '';

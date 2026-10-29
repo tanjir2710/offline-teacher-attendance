@@ -1,4 +1,4 @@
-const CACHE='classroll-production-v0.9.0';
+const CACHE='classroll-production-v0.9.1';
 const ASSETS=['./','./index.html','./manifest.webmanifest','./icons/icon.svg','./icons/apple-touch-icon.png','./icons/icon-192.png','./icons/icon-512.png','./firebase-config.mjs','./firebase-sync.mjs','./exam-duty/app.mjs','./exam-duty/core.mjs','./exam-duty/style.css','./exam-duty/roster.json','./portal-helper/app.mjs','./portal-helper/core.mjs'];
 
 self.addEventListener('install',event=>{
